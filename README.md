@@ -137,3 +137,6 @@ Para compartir una presentación descargada, súbela al repositorio (por ejemplo
 ## Aviso
 
 Proyecto independiente, sin relación con Digital Combustion, Inc. "Fire Studio" es marca de su dueño. Esta herramienta **no lee ni escribe** los formatos internos de Fire Studio (`.dcs`, `.lbr`): trabaja con fotos comunes y entrega instrucciones para armar el escenario dentro del programa, usándolo según su documentación.
+
+## Acknowledgments
+* Code generated with the assistance of [Claude](https://anthropic.com) by Anthropic.

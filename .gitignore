@@ -1,0 +1,9 @@
+# Proyectos, exportaciones y fotos que no deben subirse
+*.zip
+*_proyecto_*.json
+presentacion_*.html
+fotos/
+__pycache__/
+.DS_Store
+Thumbs.db
+desktop.ini

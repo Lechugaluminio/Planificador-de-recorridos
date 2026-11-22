@@ -93,12 +93,25 @@ Es un solo archivo HTML: no necesita instalación, servidor ni internet, y **las
 - **Android**: abrir el `.html` con Chrome.
 - **iPhone**: abrirlo desde un archivo suele mostrar solo una vista previa sin interactividad. Lo confiable es **subirlo a una página web** (por ejemplo a este mismo repositorio con GitHub Pages) y compartir el link.
 
+## Captura en terreno (teléfono)
+
+`captura/` es una app web para Android (sirve en cualquier teléfono con Chrome) para **levantar el edificio por recorridos** directo en terreno:
+
+- **Edificio → recorridos → estaciones → fotos.** Un recorrido por emergencia (acceso principal → patio → piso 2 → foco; lado B → techo…).
+- Fotos con la **cámara del teléfono** (📷) o desde la **galería** (🖼, útil para usar el gran angular de la app de cámara). Se ordenan solas.
+- Nombres de estación con un toque (Acceso, Hall, Pasillo, Piso 2, Techo…) y marca 🔥 del foco.
+- Todo queda guardado en el teléfono (también sin señal); nada se sube a internet.
+- **Exportar** arma un `.zip` por recorrido con el mismo formato del planificador: aquí se abre con **Menú ☰ → Abrir proyecto**, con las fotos en orden, nombradas, encadenadas y con el inicio y el foco marcados.
+
+Link para el teléfono (y para compartir con colegas): `https://<usuario>.github.io/<repositorio>/captura/`. En Chrome, *⋮ → Agregar a pantalla principal* la deja como app.
+
 ---
 
 ## Estructura del repositorio
 
 ```
 index.html          ← la app completa (lo que se abre / se publica). Se genera con tools/build.py
+captura/            ← app de captura para el teléfono (index.html, sw.js, manifest, íconos)
 src/
   app.html          ← interfaz y lógica (HTML + CSS + JS)
   fxengine.js       ← motor de fuego y humo animado (también va dentro de las presentaciones)

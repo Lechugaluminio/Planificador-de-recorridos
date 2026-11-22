@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#141518">
+<title>Captura de recorridos · Fire Studio</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#141518; --panel:#1c1e22; --panel2:#24272c; --line:#33373e; --text:#e8e6e3; --mute:#9a9ea6;
+  --fire:#ff6a2b; --fire2:#ffb23f; --ok:#4cc38a; --warn:#f2c94c; --bad:#ff5c5c;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;cursor:pointer;touch-action:manipulation}
+button:active{filter:brightness(1.25)}
+button.pri{background:var(--fire);border-color:var(--fire);color:#160a04;font-weight:600}
+button.ghost{background:transparent;border-color:transparent}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.4}
+input[type=text]{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%}
+select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px}
+.mute{color:var(--mute)}
+.small{font-size:13px}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:16px;margin:0;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .dot{width:10px;height:10px;border-radius:50%;flex:none;background:radial-gradient(circle at 40% 40%,var(--fire2),var(--fire));box-shadow:0 0 10px var(--fire)}
+header button{padding:8px 11px}
+main{padding:12px 12px 150px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;align-items:center;gap:8px}
+.row .sp{flex:1}
+.list .card{display:flex;align-items:center;gap:12px}
+.list .card .tx{flex:1;min-width:0}
+.list .card b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cover{width:64px;height:48px;border-radius:8px;object-fit:cover;background:var(--panel2);flex:none}
+.empty{text-align:center;padding:40px 16px;color:var(--mute)}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+/* estaciones */
+.est{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.est.on{border-color:var(--fire);box-shadow:0 0 0 1px var(--fire) inset}
+.est .hd{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.est .n{font-family:ui-monospace,monospace;font-weight:700;color:var(--fire2)}
+.est .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.est .nm.sin{color:var(--mute);font-weight:400;font-style:italic}
+.est .fx{padding:6px 9px;border-radius:9px}
+.est .fx.on{background:var(--fire);border-color:var(--fire);color:#160a04}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:0 12px 12px}
+.strip img{height:72px;width:auto;min-width:54px;border-radius:7px;background:var(--panel2);flex:none}
+.strip .add{height:72px;min-width:72px;border-style:dashed;color:var(--mute);flex:none}
+/* barra inferior */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(28,30,34,.96);border-top:1px solid var(--line);padding:8px 10px;padding-bottom:max(10px,env(safe-area-inset-bottom));backdrop-filter:blur(6px)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px}
+.chip{flex:none;padding:7px 12px;border-radius:18px;font-size:14px;white-space:nowrap}
+.chip.on{background:var(--fire2);border-color:var(--fire2);color:#160a04;font-weight:600}
+.dock .acts{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:8px}
+.dock .acts button{padding:13px 6px;font-weight:600}
+.dock .acts .shot{font-size:17px}
+.dock .lbl{font-size:12px;color:var(--mute);margin:0 2px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* modal */
+.ov{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;width:100%;max-width:560px;max-height:92vh;overflow:auto;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.sheet h3{margin:0 0 10px;font-size:17px}
+.sheet .btns{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;flex-wrap:wrap}
+.sheet .stack{display:flex;flex-direction:column;gap:8px}
+.sheet .stack button{text-align:left}
+.viewer{position:fixed;inset:0;z-index:30;background:#000;display:flex;flex-direction:column}
+.viewer img{flex:1;min-height:0;object-fit:contain;width:100%}
+.viewer .bar{display:flex;gap:8px;padding:10px;padding-bottom:max(10px,env(safe-area-inset-bottom));background:var(--panel)}
+.viewer .bar button{flex:1}
+.toast{position:fixed;left:50%;bottom:170px;transform:translateX(-50%);background:#000c;border:1px solid var(--line);padding:9px 14px;border-radius:10px;z-index:40;max-width:90vw;text-align:center;pointer-events:none;transition:opacity .3s}
+.busy{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px}
+.spin{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--fire);animation:sp 0.9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.help p{margin:6px 0}
+.help ol{padding-left:20px;margin:6px 0}
+a{color:var(--fire2)}
+</style>
+</head>
+<body>
+<header id="hd"></header>
+<main id="main"></main>
+<div id="dock" class="dock"></div>
+<input type="file" id="inCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="inGal" accept="image/*" multiple hidden>
+
+<script>
+'use strict';
+/* =========================================================
+   Captura de recorridos — compañera del Planificador de recorridos.
+   Edificio > recorridos > estaciones > fotos. Todo queda guardado en el
+   teléfono (IndexedDB). Exporta un .zip que el planificador abre con
+   Menú > Abrir proyecto (mismo formato que su propio .zip).
+   ========================================================= */
+
+const NOMBRES = ['Frontis','Lateral izquierdo','Lateral derecho','Posterior','Acceso','Hall','Pasillo',
+  'Escalera','Patio','Piso 2','Piso 3','Techo','Entretecho','Subterráneo','Living','Cocina','Dormitorio',
+  'Baño','Bodega','Estacionamiento','Ventana','Puerta','Foco'];
+const TAMANOS = {1920:'1920 px (liviano)', 2560:'2560 px (recomendado)', 0:'Original'};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => Math.random().toString(36).slice(2, 9);
+const pad = (n, k = 3) => String(n).padStart(k, '0');
+function slug(s){return (s||'foto').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,40)||'foto';}
+
+/* ---------- almacenamiento ---------- */
+let DB;
+function idb(){
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('captura-recorridos', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('kv'); d.createObjectStore('fotos'); };
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+}
+function tx(store, mode, fn){
+  return new Promise((res, rej) => {
+    const t = DB.transaction(store, mode); const st = t.objectStore(store);
+    let out; const q = fn(st); if (q) q.onsuccess = () => { out = q.result; };
+    t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+  });
+}
+const kvGet = k => tx('kv', 'readonly', s => s.get(k));
+const kvSet = (k, v) => tx('kv', 'readwrite', s => s.put(v, k));
+const fotoGet = id => tx('fotos', 'readonly', s => s.get(id));
+const fotoSet = (id, v) => tx('fotos', 'readwrite', s => s.put(v, id));
+const fotoDel = id => tx('fotos', 'readwrite', s => s.delete(id));
+
+let E = {edificios: [], tam: 2560, recientes: []};   // estado
+let guardando = Promise.resolve();
+function guardar(){ const copia = JSON.parse(JSON.stringify(E)); guardando = guardando.then(() => kvSet('estado', copia)).catch(e => toast('No se pudo guardar: ' + e.message)); return guardando; }
+
+/* ---------- búsqueda ---------- */
+function buscarRuta(rid){ for (const ed of E.edificios) for (const r of ed.recorridos) if (r.id === rid) return {ed, r}; return null; }
+const edif = id => E.edificios.find(e => e.id === id);
+const fotosDe = r => r.estaciones.reduce((n, s) => n + s.fotos.length, 0);
+function nombreRuta(r){
+  const con = r.estaciones.filter(s => s.fotos.length);
+  if (!con.length) return 'Sin fotos aún';
+  const a = con[0].nombre || 'E01', b = con[con.length - 1].nombre || ('E' + pad(con.length, 2));
+  return con.length > 1 && a !== b ? `${a} → ${b}` : a;
+}
+
+/* ---------- miniaturas ---------- */
+const URLS = {};
+async function thumbURL(id){
+  if (URLS[id]) return URLS[id];
+  const f = await fotoGet(id); if (!f) return '';
+  URLS[id] = URL.createObjectURL(f.thumb || f.blob); return URLS[id];
+}
+function pintarMiniaturas(){
+  document.querySelectorAll('img[data-f]').forEach(async im => { const u = await thumbURL(im.dataset.f); if (u) im.src = u; });
+}
+
+/* ---------- interfaz básica ---------- */
+let tt;
+function toast(m, ms = 2400){ let t = $('.toast'); if (!t){ t = document.createElement('div'); t.className = 'toast'; document.body.appendChild(t); }
+  t.textContent = m; t.style.opacity = 1; clearTimeout(tt); tt = setTimeout(() => t.style.opacity = 0, ms); }
+function ocupado(msg){ const b = document.createElement('div'); b.className = 'busy'; b.innerHTML = `<div class="spin"></div><div class="msg">${esc(msg)}</div>`; document.body.appendChild(b);
+  return {set: m => b.querySelector('.msg').textContent = m, fin: () => b.remove()}; }
+function hoja(html, onOpen){
+  return new Promise(res => {
+    const ov = document.createElement('div'); ov.className = 'ov';
+    ov.innerHTML = `<div class="sheet">${html}</div>`; document.body.appendChild(ov);
+    const cerrar = v => { ov.remove(); res(v); };
+    ov.addEventListener('click', e => { if (e.target === ov) cerrar(null); const b = e.target.closest('[data-r]'); if (b) cerrar(b.dataset.r); });
+    if (onOpen) onOpen(ov.querySelector('.sheet'), cerrar);
+  });
+}
+async function pedirTexto(titulo, valor = '', ayuda = ''){
+  let inp;
+  const r = await hoja(`<h3>${esc(titulo)}</h3>${ayuda ? `<p class="mute small">${esc(ayuda)}</p>` : ''}<input type="text" id="tx" value="${esc(valor)}" autocomplete="off">
+    <div class="btns"><button data-r="no">Cancelar</button><button class="pri" data-r="ok">Listo</button></div>`,
+    (sh, cerrar) => { inp = sh.querySelector('#tx'); setTimeout(() => { inp.focus(); inp.select(); }, 50);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') cerrar('ok'); }); });
+  return r === 'ok' ? inp.value.trim() : null;
+}
+async function confirmar(titulo, texto, si = 'Borrar'){
+  return (await hoja(`<h3>${esc(titulo)}</h3><p class="mute">${texto}</p><div class="btns"><button data-r="no">Cancelar</button><button class="pri" data-r="si">${esc(si)}</button></div>`)) === 'si';
+}
+
+/* ---------- navegación ---------- */
+function ir(h){ if (location.hash !== h) location.hash = h; else render(); }
+window.addEventListener('hashchange', render);
+let activa = {};   // recorrido id -> estación activa
+
+function render(){
+  const h = location.hash.slice(1).split('/');
+  if (h[0] === 'e' && edif(h[1])) return vistaEdificio(edif(h[1]));
+  if (h[0] === 'r' && buscarRuta(h[1])) return vistaRecorrido(buscarRuta(h[1]));
+  vistaInicio();
+}
+
+/* ---------- inicio ---------- */
+function vistaInicio(){
+  $('#hd').innerHTML = `<span class="dot"></span><h1>Captura de recorridos</h1><button class="ghost" id="bAyuda">?</button><button class="ghost" id="bAjustes">⚙</button>`;
+  $('#dock').innerHTML = `<div class="acts" style="grid-template-columns:1fr"><button class="pri" id="bNuevoEd">＋ Edificio nuevo</button></div>`;
+  const lista = E.edificios.slice().sort((a, b) => b.mod - a.mod);
+  $('#main').innerHTML = lista.length ? `<div class="list">${lista.map(ed => {
+      const nf = ed.recorridos.reduce((n, r) => n + fotosDe(r), 0);
+      const tapa = ed.recorridos.flatMap(r => r.estaciones.flatMap(s => s.fotos))[0];
+      return `<div class="card" data-ed="${ed.id}">${tapa ? `<img class="cover" data-f="${tapa}">` : '<div class="cover"></div>'}
+        <div class="tx"><b>${esc(ed.nombre)}</b><span class="mute small">${ed.recorridos.length} recorrido${ed.recorridos.length === 1 ? '' : 's'} · ${nf} foto${nf === 1 ? '' : 's'}</span></div><span class="mute">›</span></div>`;
+    }).join('')}</div>`
+    : `<div class="empty"><b>Levanta un edificio por recorridos</b>Crea el edificio, después un recorrido por cada emergencia que quieras simular (por ejemplo: entrar por el acceso principal y subir al piso 2; entrar por el lado B y subir al techo).<br><br>Cada recorrido se exporta como un .zip que el Planificador abre con <i>Menú › Abrir proyecto</i>.</div>`;
+  $('#main').querySelectorAll('[data-ed]').forEach(c => c.onclick = () => ir('#e/' + c.dataset.ed));
+  $('#bNuevoEd').onclick = async () => {
+    const n = await pedirTexto('Nombre del edificio', '', 'Ej: Entretecho Herrera 650');
+    if (!n) return;
+    const ed = {id: uid(), nombre: n, recorridos: [], mod: Date.now()};
+    E.edificios.push(ed); await guardar(); ir('#e/' + ed.id);
+  };
+  $('#bAjustes').onclick = ajustes; $('#bAyuda').onclick = ayuda;
+  pintarMiniaturas();
+}
+
+/* ---------- edificio ---------- */
+function vistaEdificio(ed){
+  $('#hd').innerHTML = `<button class="ghost" id="bAtras">‹</button><h1>${esc(ed.nombre)}</h1><button class="ghost" id="bMenu">⋯</button>`;
+  $('#dock').innerHTML = `<div class="acts" style="grid-template-columns:1fr 1fr"><button id="bExpTodo" ${ed.recorridos.some(r => fotosDe(r)) ? '' : 'disabled'}>Exportar todos</button><button class="pri" id="bNuevoR">＋ Recorrido</button></div>`;
+  $('#main').innerHTML = ed.recorridos.length ? `<div class="list">${ed.recorridos.map(r => {
+      const nf = fotosDe(r); const tapa = r.estaciones.flatMap(s => s.fotos)[0];
+      return `<div class="card" data-r="${r.id}">${tapa ? `<img class="cover" data-f="${tapa}">` : '<div class="cover"></div>'}
+        <div class="tx"><b>R${r.n} · ${esc(r.nota || nombreRuta(r))}</b><span class="mute small">${(k => k + (k === 1 ? ' estación' : ' estaciones'))(r.estaciones.filter(s => s.fotos.length).length)} · ${nf} foto${nf === 1 ? '' : 's'}${r.nota ? ' · ' + esc(nombreRuta(r)) : ''}</span></div><span class="mute">›</span></div>`;
+    }).join('')}</div>`
+    : `<div class="empty"><b>Sin recorridos</b>Un recorrido es un camino por el edificio: desde donde entra la dotación hasta el foco. Puedes hacer varios del mismo edificio.</div>`;
+  $('#main').querySelectorAll('[data-r]').forEach(c => c.onclick = () => ir('#r/' + c.dataset.r));
+  $('#bAtras').onclick = () => ir('#');
+  $('#bNuevoR').onclick = async () => {
+    const n = ed.recorridos.reduce((m, r) => Math.max(m, r.n), 0) + 1;
+    const r = {id: uid(), n, nota: '', estaciones: [{id: uid(), nombre: '', foco: false, fotos: []}], mod: Date.now()};
+    ed.recorridos.push(r); ed.mod = Date.now(); await guardar(); ir('#r/' + r.id);
+  };
+  $('#bExpTodo').onclick = () => exportar(ed, ed.recorridos.filter(r => fotosDe(r)));
+  $('#bMenu').onclick = async () => {
+    const r = await hoja(`<h3>${esc(ed.nombre)}</h3><div class="stack"><button data-r="ren">Cambiar nombre</button><button class="danger" data-r="del">Borrar edificio y sus fotos</button></div><div class="btns"><button data-r="no">Cerrar</button></div>`);
+    if (r === 'ren'){ const n = await pedirTexto('Nombre del edificio', ed.nombre); if (n){ ed.nombre = n; await guardar(); render(); } }
+    if (r === 'del' && await confirmar('¿Borrar el edificio?', `Se borran <b>${ed.recorridos.length}</b> recorridos y sus fotos de este teléfono. Lo que ya exportaste no se toca.`)){
+      for (const rr of ed.recorridos) for (const s of rr.estaciones) for (const f of s.fotos) await fotoDel(f);
+      E.edificios = E.edificios.filter(x => x !== ed); await guardar(); ir('#');
+    }
+  };
+  pintarMiniaturas();
+}
+
+/* ---------- recorrido (captura) ---------- */
+function estActiva(r){
+  let id = activa[r.id]; let s = r.estaciones.find(x => x.id === id);
+  if (!s){ s = r.estaciones[r.estaciones.length - 1]; activa[r.id] = s.id; }
+  return s;
+}
+function chipsPara(r, s){
+  // sugerencias: los nombres propios usados primero, luego la lista partiendo después del nombre anterior
+  const i = r.estaciones.indexOf(s); const prev = i > 0 ? r.estaciones[i - 1].nombre : '';
+  const k = NOMBRES.indexOf(prev);
+  const rot = k >= 0 ? NOMBRES.slice(k + 1).concat(NOMBRES.slice(0, k + 1)) : NOMBRES;
+  const out = []; for (const n of [s.nombre, ...rot.slice(0, 3), ...E.recientes, ...rot.slice(3)]) if (n && !out.includes(n)) out.push(n);
+  return out;
+}
+function vistaRecorrido({ed, r}){
+  const s = estActiva(r);
+  $('#hd').innerHTML = `<button class="ghost" id="bAtras">‹</button><h1>R${r.n} · ${esc(ed.nombre)}</h1><button class="pri" id="bExp" ${fotosDe(r) ? '' : 'disabled'}>Exportar</button><button class="ghost" id="bMenu">⋯</button>`;
+  const vis = r.estaciones;
+  let num = 0;
+  $('#main').innerHTML = vis.map((x, i) => {
+    num++;
+    return `<div class="est ${x.id === s.id ? 'on' : ''}" data-s="${x.id}">
+      <div class="hd"><span class="n">E${pad(num, 2)}</span><span class="nm ${x.nombre ? '' : 'sin'}" data-ren="${x.id}">${esc(x.nombre || 'sin nombre — toca para nombrar')}</span>
+        <span class="mute small">${x.fotos.length}</span><button class="fx ${x.foco ? 'on' : ''}" data-foco="${x.id}" title="Foco del fuego">🔥</button><button class="ghost" data-smenu="${x.id}">⋯</button></div>
+      ${x.fotos.length ? `<div class="strip">${x.fotos.map(f => `<img data-f="${f}" data-ver="${f}" data-en="${x.id}">`).join('')}</div>`
+        : x.id === s.id ? '<div class="mute small" style="padding:0 12px 12px">Sin fotos: usa 📷 Foto o 🖼 Galería</div>' : ''}
+    </div>`;
+  }).join('') + `<p class="mute small" style="text-align:center">Toca una estación para seguir agregando fotos ahí.</p>`;
+  const chips = chipsPara(r, s);
+  $('#dock').innerHTML = `<div class="lbl">Nombre de <b>E${pad(vis.indexOf(s) + 1, 2)}</b>:</div>
+    <div class="chips">${chips.map(n => `<button class="chip ${n === s.nombre ? 'on' : ''}" data-chip="${esc(n)}">${esc(n)}</button>`).join('')}<button class="chip" data-chip="__otro">✏️ Otro…</button></div>
+    <div class="acts"><button id="bGal">🖼 Galería</button><button class="pri shot" id="bCam">📷 Foto</button><button id="bSig">Estación ›</button></div>`;
+  // eventos
+  $('#bAtras').onclick = () => ir('#e/' + ed.id);
+  $('#bExp').onclick = () => exportar(ed, [r]);
+  $('#main').querySelectorAll('.est').forEach(c => c.addEventListener('click', e => {
+    if (e.target.closest('button,[data-ren],[data-ver]')) return;
+    activa[r.id] = c.dataset.s; render();
+  }));
+  $('#main').querySelectorAll('[data-ren]').forEach(c => c.onclick = async () => {
+    activa[r.id] = c.dataset.ren; const x = r.estaciones.find(y => y.id === c.dataset.ren);
+    const n = await pedirTexto('Nombre de la estación', x.nombre); if (n === null) return render();
+    x.nombre = n; recordar(n); r.mod = ed.mod = Date.now(); await guardar(); render();
+  });
+  $('#main').querySelectorAll('[data-foco]').forEach(c => c.onclick = async () => {
+    const x = r.estaciones.find(y => y.id === c.dataset.foco); x.foco = !x.foco; await guardar(); render();
+    toast(x.foco ? 'Marcada como foco del fuego' : 'Ya no es el foco');
+  });
+  $('#main').querySelectorAll('[data-smenu]').forEach(c => c.onclick = () => menuEstacion(ed, r, r.estaciones.find(y => y.id === c.dataset.smenu)));
+  $('#main').querySelectorAll('[data-ver]').forEach(c => c.onclick = () => verFoto(ed, r, r.estaciones.find(y => y.id === c.dataset.en), c.dataset.ver));
+  $('#dock').querySelectorAll('[data-chip]').forEach(c => c.onclick = async () => {
+    let n = c.dataset.chip;
+    if (n === '__otro'){ n = await pedirTexto('Nombre de la estación', s.nombre); if (!n) return; recordar(n); }
+    s.nombre = n; r.mod = ed.mod = Date.now(); await guardar(); render();
+  });
+  $('#bCam').onclick = () => { destino = {rid: r.id, sid: s.id}; $('#inCam').click(); };
+  $('#bGal').onclick = () => { destino = {rid: r.id, sid: s.id}; $('#inGal').click(); };
+  $('#bSig').onclick = async () => {
+    if (!s.fotos.length && !s.nombre){ toast('Esta estación aún está vacía'); return; }
+    const i = r.estaciones.indexOf(s);
+    const nueva = {id: uid(), nombre: '', foco: false, fotos: []};
+    r.estaciones.splice(i + 1, 0, nueva); activa[r.id] = nueva.id; await guardar(); render();
+    setTimeout(() => document.querySelector(`[data-s="${nueva.id}"]`)?.scrollIntoView({behavior: 'smooth', block: 'center'}), 50);
+  };
+  $('#bMenu').onclick = async () => {
+    const x = await hoja(`<h3>R${r.n} · ${esc(nombreRuta(r))}</h3><div class="stack">
+      <button data-r="nota">Descripción del recorrido${r.nota ? ': ' + esc(r.nota) : ''}</button>
+      <button class="danger" data-r="del">Borrar recorrido y sus fotos</button></div><div class="btns"><button data-r="no">Cerrar</button></div>`);
+    if (x === 'nota'){ const n = await pedirTexto('Descripción', r.nota, 'Ej: Entrada lado B, sube al techo'); if (n !== null){ r.nota = n; await guardar(); render(); } }
+    if (x === 'del' && await confirmar('¿Borrar el recorrido?', `Se borran sus <b>${fotosDe(r)}</b> fotos de este teléfono.`)){
+      for (const st of r.estaciones) for (const f of st.fotos) await fotoDel(f);
+      ed.recorridos = ed.recorridos.filter(y => y !== r); await guardar(); ir('#e/' + ed.id);
+    }
+  };
+  pintarMiniaturas();
+}
+function recordar(n){
+  if (!n || NOMBRES.includes(n)) return;
+  E.recientes = [n, ...E.recientes.filter(x => x !== n)].slice(0, 12);
+}
+async function menuEstacion(ed, r, x){
+  const i = r.estaciones.indexOf(x);
+  const v = await hoja(`<h3>E${pad(i + 1, 2)} · ${esc(x.nombre || 'sin nombre')}</h3><div class="stack">
+    <button data-r="ren">Cambiar nombre</button>
+    <button data-r="sub" ${i === 0 ? 'disabled' : ''}>Mover antes ↑</button>
+    <button data-r="baj" ${i === r.estaciones.length - 1 ? 'disabled' : ''}>Mover después ↓</button>
+    <button data-r="ins">Insertar estación antes</button>
+    <button class="danger" data-r="del">Borrar estación${x.fotos.length ? ` y sus ${x.fotos.length} fotos` : ''}</button></div>
+    <div class="btns"><button data-r="no">Cerrar</button></div>`);
+  if (v === 'ren'){ const n = await pedirTexto('Nombre de la estación', x.nombre); if (n !== null){ x.nombre = n; recordar(n); } }
+  if (v === 'sub'){ r.estaciones.splice(i, 1); r.estaciones.splice(i - 1, 0, x); }
+  if (v === 'baj'){ r.estaciones.splice(i, 1); r.estaciones.splice(i + 1, 0, x); }
+  if (v === 'ins'){ const n = {id: uid(), nombre: '', foco: false, fotos: []}; r.estaciones.splice(i, 0, n); activa[r.id] = n.id; }
+  if (v === 'del'){
+    if (x.fotos.length && !await confirmar('¿Borrar la estación?', `Se borran sus ${x.fotos.length} fotos de este teléfono.`)) return;
+    for (const f of x.fotos) await fotoDel(f);
+    r.estaciones.splice(i, 1);
+    if (!r.estaciones.length) r.estaciones.push({id: uid(), nombre: '', foco: false, fotos: []});
+  }
+  r.mod = ed.mod = Date.now(); await guardar(); render();
+}
+async function verFoto(ed, r, x, fid){
+  const f = await fotoGet(fid); if (!f) return;
+  const url = URL.createObjectURL(f.blob);
+  const v = document.createElement('div'); v.className = 'viewer';
+  const k = x.fotos.indexOf(fid);
+  v.innerHTML = `<img src="${url}"><div class="bar"><button data-a="izq" ${k === 0 ? 'disabled' : ''}>◀ Antes</button><button class="danger" data-a="del">Borrar</button><button data-a="der" ${k === x.fotos.length - 1 ? 'disabled' : ''}>Después ▶</button><button data-a="x">Cerrar</button></div>`;
+  document.body.appendChild(v);
+  v.querySelector('.bar').onclick = async e => {
+    const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+    if (a === 'del'){ if (!await confirmar('¿Borrar esta foto?', 'Se borra de este teléfono (no de tu galería).')) return;
+      x.fotos.splice(k, 1); await fotoDel(fid); }
+    if (a === 'izq'){ x.fotos.splice(k, 1); x.fotos.splice(k - 1, 0, fid); }
+    if (a === 'der'){ x.fotos.splice(k, 1); x.fotos.splice(k + 1, 0, fid); }
+    v.remove(); URL.revokeObjectURL(url);
+    if (a !== 'x'){ r.mod = ed.mod = Date.now(); await guardar(); }
+    render();
+  };
+}
+
+/* ---------- agregar fotos ---------- */
+let destino = null;
+$('#inCam').onchange = e => { agregar([...e.target.files]); e.target.value = ''; };
+// galería: los nombres de la cámara (IMG_20261121_213000…) y del selector de Android crecen con la hora
+$('#inGal').onchange = e => { agregar([...e.target.files].sort((a, b) => a.name.localeCompare(b.name, undefined, {numeric: true}) || (a.lastModified - b.lastModified))); e.target.value = ''; };
+
+async function decodificar(file, opt){
+  try { return await createImageBitmap(file, {imageOrientation: 'from-image', ...opt}); }
+  catch (e) { // navegadores sin opciones de createImageBitmap
+    const u = URL.createObjectURL(file); const im = new Image(); im.src = u; await im.decode(); URL.revokeObjectURL(u); return im;
+  }
+}
+function aBlob(img, w, h, q){
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, 0, 0, w, h);
+  return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('sin memoria')), 'image/jpeg', q));
+}
+// medidas de un JPEG leyendo solo su encabezado (sin decodificar la foto entera)
+async function medidasJPEG(file){
+  try {
+    const u = new Uint8Array(await file.slice(0, 512 * 1024).arrayBuffer());
+    if (u[0] !== 0xFF || u[1] !== 0xD8) return null;
+    let i = 2;
+    while (i + 9 < u.length){
+      if (u[i] !== 0xFF){ i++; continue; }
+      const m = u[i + 1];
+      if (m === 0xFF){ i++; continue; }
+      if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7)){ i += 2; continue; }
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return {h: (u[i + 5] << 8) | u[i + 6], w: (u[i + 7] << 8) | u[i + 8]};
+      i += 2 + ((u[i + 2] << 8) | u[i + 3]);
+    }
+  } catch (e) {}
+  return null;
+}
+async function procesar(file){
+  const max = +E.tam;
+  // miniatura (y proporción) decodificando en chico, para no llenar la memoria del teléfono
+  let mini = await decodificar(file, {resizeWidth: 320, resizeQuality: 'medium'});
+  let mw = mini.width, mh = mini.height;
+  const thumb = await aBlob(mini, 320, Math.round(320 * mh / mw), .72);
+  mini.close?.();
+  // si ya es chica (o se pidió el original), se guarda tal cual: sin recomprimir
+  const dim = await medidasJPEG(file);
+  const lado = dim ? Math.max(dim.w, dim.h) : 0, corto = dim ? Math.min(dim.w, dim.h) : 0;
+  if (dim && (!max || lado <= max)) return {blob: file, thumb, w: mw >= mh ? lado : corto, h: mw >= mh ? corto : lado};
+  if (!max) return {blob: file, thumb, w: 4000, h: Math.round(4000 * mh / mw)};
+  const apaisada = mw >= mh;
+  const big = await decodificar(file, apaisada ? {resizeWidth: max, resizeQuality: 'high'} : {resizeHeight: max, resizeQuality: 'high'});
+  let w = big.width, h = big.height;
+  if (Math.max(w, h) > max){ const k = max / Math.max(w, h); w = Math.round(w * k); h = Math.round(h * k); }
+  const blob = await aBlob(big, w, h, .9);
+  big.close?.();
+  return {blob, thumb, w, h};
+}
+async function agregar(files){
+  if (!files.length) return;
+  if (!destino){ const h = location.hash.slice(1).split('/'); if (h[0] === 'r') destino = {rid: h[1], sid: null}; else return; }
+  const br = buscarRuta(destino.rid); if (!br) return;
+  const st = br.r.estaciones.find(x => x.id === destino.sid) || estActiva(br.r);
+  const b = files.length > 1 ? ocupado('Guardando fotos…') : null;
+  let ok = 0;
+  for (const f of files){
+    b?.set(`Guardando ${ok + 1} de ${files.length}…`);
+    try {
+      const p = await procesar(f); const id = uid();
+      await fotoSet(id, {blob: p.blob, thumb: p.thumb, w: p.w, h: p.h, orig: f.name, t: Date.now()});
+      st.fotos.push(id); ok++;
+      await guardar();
+    } catch (e) { toast('No pude leer ' + f.name); }
+  }
+  br.r.mod = br.ed.mod = Date.now(); await guardar();
+  b?.fin();
+  if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+  render();
+  toast(ok === 1 ? 'Foto guardada' : `${ok} fotos guardadas`);
+}
+
+/* ---------- exportar (mismo formato que el .zip del planificador) ---------- */
+const CRC = (() => { const t = new Uint32Array(256); for (let i = 0; i < 256; i++){ let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; } return t; })();
+function crc32(u){ let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zip(files){
+  const enc = new TextEncoder(); const parts = []; const cd = []; let off = 0;
+  for (const f of files){ const name = enc.encode(f.name), d = f.data, crc = crc32(d);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true); h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, name.length, true);
+    parts.push(h.buffer, name, d);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true); c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+    cd.push(c.buffer, name); off += 30 + name.length + d.length; }
+  const cdSize = cd.reduce((s, p) => s + (p.byteLength ?? p.length), 0);
+  const e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cd, e.buffer], {type: 'application/zip'});
+}
+async function zipRecorrido(ed, r, avance){
+  const enc = new TextEncoder();
+  const ests = r.estaciones.filter(s => s.fotos.length);
+  const nodes = [], arrows = [], files = [], indice = ['diapositiva,nombre,estacion,original'];
+  let num = 0, prev = null, start = null;
+  const total = fotosDe(r);
+  for (let i = 0; i < ests.length; i++){
+    const s = ests[i]; let focoPuesto = false;
+    for (let k = 0; k < s.fotos.length; k++){
+      const f = await fotoGet(s.fotos[k]); if (!f) continue;
+      num++; avance?.(num, total);
+      let nom = 'E' + pad(i + 1, 2) + (s.nombre ? ' ' + s.nombre : '');
+      if (k > 0) nom += ` (${k + 1})`;
+      const file = `${pad(num)}_${slug(nom)}.jpg`;
+      const id = uid();
+      const final = s.foco && !focoPuesto; if (final) focoPuesto = true;
+      nodes.push({id, num, name: nom, file, w: f.w, h: f.h, vacant: false, final});
+      if (prev){ arrows.push({id: uid(), from: prev, to: id, type: 'up', x: .5, y: .55, scale: 1});
+                 arrows.push({id: uid(), from: id, to: prev, type: 'down', x: .5, y: .86, scale: 1}); }
+      prev = id; if (!start) start = id;
+      files.push({name: 'fotos/' + file, data: new Uint8Array(await f.blob.arrayBuffer())});
+      indice.push(`${pad(num)},"${nom.replace(/"/g, "'")}",${i + 1},"${(f.orig || '').replace(/"/g, "'")}"`);
+    }
+  }
+  const a = ests[0]?.nombre || 'E01', b = ests[ests.length - 1]?.nombre || ('E' + pad(ests.length, 2));
+  const tramo = ests.length > 1 && a !== b ? `${a} → ${b}` : a;
+  const nombre = `${ed.nombre} · R${r.n} · ${r.nota || tramo}`;
+  const S = {v: 1, pid: uid(), name: nombre, nextNum: num + 1, startId: start, nodes, arrows, effects: [], applied: null, exportWidth: 1920};
+  files.unshift({name: 'proyecto_recorrido.json', data: enc.encode(JSON.stringify({app: 'planificador-recorridos-fs', S, thumbs: {}}))});
+  files.push({name: 'indice.csv', data: enc.encode('﻿' + indice.join('\r\n'))});
+  const fname = `${slug(ed.nombre)}_R${r.n}_${slug(r.nota || tramo.replace('→', 'a'))}.zip`;
+  return new File([zip(files)], fname, {type: 'application/zip'});
+}
+function descargar(file){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+async function exportar(ed, rutas){
+  if (!rutas.length) return;
+  const b = ocupado('Armando el .zip…'); const out = [];
+  try {
+    for (const r of rutas){ out.push(await zipRecorrido(ed, r, (i, n) => b.set(`R${r.n}: foto ${i} de ${n}…`))); }
+  } catch (e) { b.fin(); toast('No se pudo exportar: ' + e.message, 4000); return; }
+  b.fin();
+  const mb = (out.reduce((s, f) => s + f.size, 0) / 1048576).toFixed(1);
+  const puedeCompartir = !!(navigator.canShare && navigator.canShare({files: out}));
+  const v = await hoja(`<h3>Listo para el planificador</h3>
+    <p class="mute small">${out.map(f => esc(f.name)).join('<br>')}<br>${mb} MB en total</p>
+    <p class="small">En el computador: Planificador › <b>Menú › Abrir proyecto</b> › elige el .zip. Llegan las fotos en orden, con nombre, encadenadas y con el inicio${rutas.some(r => r.estaciones.some(s => s.foco && s.fotos.length)) ? ' y el foco' : ''} marcado.</p>
+    <div class="btns">${puedeCompartir ? '<button class="pri" data-r="share">Compartir…</button>' : ''}<button ${puedeCompartir ? '' : 'class="pri"'} data-r="dl">Descargar</button><button data-r="no">Cerrar</button></div>`);
+  if (v === 'share'){
+    try { await navigator.share({files: out, title: ed.nombre, text: `Recorridos de ${ed.nombre} para el Planificador`}); }
+    catch (e) { if (e.name !== 'AbortError'){ toast('No se pudo compartir; lo descargo'); out.forEach(descargar); } }
+  }
+  if (v === 'dl') out.forEach((f, i) => setTimeout(() => descargar(f), i * 700));
+}
+
+/* ---------- ajustes y ayuda ---------- */
+async function ajustes(){
+  let est = ''; try { const q = await navigator.storage.estimate(); est = `Usando ${(q.usage / 1048576).toFixed(0)} MB de ${(q.quota / 1048576 / 1024).toFixed(1)} GB disponibles.`; } catch (e) {}
+  const persist = await navigator.storage?.persisted?.().catch(() => false);
+  const v = await hoja(`<h3>Ajustes</h3>
+    <p class="small">Tamaño de las fotos guardadas</p>
+    <select id="selTam" style="width:100%">${Object.entries(TAMANOS).map(([k, t]) => `<option value="${k}" ${+k === +E.tam ? 'selected' : ''}>${t}</option>`).join('')}</select>
+    <p class="mute small">2560 px sobra para Fire Studio y deja cada .zip liviano para mandarlo por WhatsApp o Drive. "Original" guarda la foto tal cual sale de la cámara.</p>
+    <p class="mute small">${esc(est)} ${persist ? 'El navegador no borrará estos datos.' : 'Exporta los recorridos terminados: si el navegador necesita espacio podría borrarlos.'}</p>
+    <div class="btns"><button class="pri" data-r="ok">Listo</button></div>`, sh => sh.querySelector('#selTam').onchange = e => { E.tam = +e.target.value; guardar(); });
+}
+function ayuda(){
+  hoja(`<div class="help"><h3>Cómo se usa</h3>
+    <ol><li><b>Edificio nuevo</b> y luego <b>＋ Recorrido</b> por cada emergencia (acceso principal → piso 2; lado B → techo…).</li>
+    <li>En cada punto del camino: elige el nombre (chips de abajo), toma las fotos con <b>📷 Foto</b> y pasa a la siguiente con <b>Estación ›</b>.</li>
+    <li>Marca con 🔥 la estación donde está el foco.</li>
+    <li><b>Exportar</b> arma un .zip por recorrido. Compártelo a tu computador (Drive, WhatsApp, cable) y ábrelo en el Planificador con <i>Menú › Abrir proyecto</i>.</li></ol>
+    <p><b>Gran angular:</b> si al tocar 📷 Foto la cámara no ofrece 0.5×, toma las fotos con la app de cámara normal y agrégalas con <b>🖼 Galería</b> (se ordenan por hora).</p>
+    <p><b>Colegas:</b> cada uno usa este mismo link en su teléfono, exporta sus recorridos y te manda los .zip.</p>
+    <p class="mute small">Todo queda en este teléfono; nada se sube a internet. Funciona sin señal una vez abierta.</p>
+    <p class="small"><a href="../">Abrir el Planificador</a></p></div>
+    <div class="btns"><button class="pri" data-r="ok">Entendido</button></div>`);
+}
+
+/* ---------- inicio ---------- */
+(async () => {
+  try { DB = await idb(); const st = await kvGet('estado'); if (st) E = Object.assign(E, st); }
+  catch (e) { $('#main').innerHTML = `<div class="empty"><b>Este navegador no deja guardar datos</b>${esc(e.message)}</div>`; return; }
+  render();
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>

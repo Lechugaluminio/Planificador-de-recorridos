@@ -144,7 +144,7 @@ const fotoGet = id => tx('fotos', 'readonly', s => s.get(id));
 const fotoSet = (id, v) => tx('fotos', 'readwrite', s => s.put(v, id));
 const fotoDel = id => tx('fotos', 'readwrite', s => s.delete(id));
 
-let E = {edificios: [], tam: 2560, recientes: [], camara: 'app', camId: ''};   // estado
+let E = {edificios: [], tam: 2560, recientes: [], camara: 'app', camId: '', camZoom: 1};   // estado
 let guardando = Promise.resolve();
 function guardar(){ const copia = JSON.parse(JSON.stringify(E)); guardando = guardando.then(() => kvSet('estado', copia)).catch(e => toast('No se pudo guardar: ' + e.message)); return guardando; }
 
@@ -560,8 +560,12 @@ async function camIniciar(devId){
   if (set.deviceId){ CAM.devId = set.deviceId; E.camId = set.deviceId; guardar(); }
   CAM.lentes = await camLentes();
   const i = CAM.lentes.findIndex(d => d.deviceId === CAM.devId);
-  CAM.el.querySelector('[data-c=sw]').textContent = CAM.lentes.length > 1 ? `⇄ Lente ${i + 1}/${CAM.lentes.length}` : '⇄ Lente';
-  CAM.el.querySelector('[data-c=sw]').disabled = CAM.lentes.length < 2;
+  CAM.el.querySelector('[data-c=sw]').textContent = CAM.lentes.length > 1 ? `⇄ Lente ${i + 1}/${CAM.lentes.length}` : '1 lente';
+  // volver al último zoom usado
+  const z = (CAM.track.getCapabilities ? CAM.track.getCapabilities() : {}).zoom;
+  if (z && E.camZoom && E.camZoom !== (CAM.track.getSettings().zoom ?? 1) && E.camZoom >= z.min && E.camZoom <= z.max){
+    try { await CAM.track.applyConstraints({advanced: [{zoom: E.camZoom}]}); } catch (e) {}
+  }
   camZoom();
 }
 function camZoom(){
@@ -572,7 +576,7 @@ function camZoom(){
   const vals = [...new Set([z.min, 1, 2, 4].filter(x => x >= z.min && x <= z.max).map(x => Math.round(x * 10) / 10))];
   box.innerHTML = vals.map(x => `<button data-z="${x}" class="${Math.abs(x - actual) < .05 ? 'on' : ''}">${x}×</button>`).join('');
   box.querySelectorAll('[data-z]').forEach(b => b.onclick = async () => {
-    try { await CAM.track.applyConstraints({advanced: [{zoom: +b.dataset.z}]}); camZoom(); } catch (e) { toast('Este lente no acepta ese zoom'); }
+    try { await CAM.track.applyConstraints({advanced: [{zoom: +b.dataset.z}]}); E.camZoom = +b.dataset.z; guardar(); camZoom(); } catch (e) { toast('Este lente no acepta ese zoom'); }
   });
 }
 async function camFoto(){
@@ -605,9 +609,10 @@ function abrirCamara(rid, sid){
   el.querySelector('.cbar').onclick = async e => {
     const c = e.target.closest('[data-c]')?.dataset.c; if (!c) return;
     if (c === 'x'){ camParar(); el.remove(); CAM = null; render(); return; }
-    if (c === 'sw' && CAM.lentes?.length > 1){
-      const i = CAM.lentes.findIndex(d => d.deviceId === CAM.devId);
-      await camIniciar(CAM.lentes[(i + 1) % CAM.lentes.length].deviceId); return;
+    if (c === 'sw'){
+      if (CAM.lentes?.length > 1){ const i = CAM.lentes.findIndex(d => d.deviceId === CAM.devId); await camIniciar(CAM.lentes[(i + 1) % CAM.lentes.length].deviceId); }
+      else toast('Este teléfono le entrega un solo lente trasero al navegador. Para el gran angular: foto con la cámara del teléfono y súmala con 🖼 Galería.', 6000);
+      return;
     }
     if (c === 'shot'){
       const b = el.querySelector('.shut'); if (b.disabled || !CAM.stream) return; b.disabled = true;

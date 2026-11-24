@@ -39,17 +39,17 @@ Es un solo archivo HTML: no necesita instalación, servidor ni internet, y **las
 ![Modo prueba](planificador-recorridos/docs/probar.jpg)
 
 - Recorrer el escenario como lo verá el alumno, con efectos animados.
-- **Descargar presentación**: un `.html` único tipo "Player", solo navegable con las flechas, sin edición. Funciona en computador y en celular (en iPhone, abrirlo desde un link; ver más abajo).
+- **Descargar presentación** (calidad **Liviana · celular** 1280 px o **Alta** 1920 px): un `.html` único tipo "Player", solo navegable con las flechas, sin edición. Funciona en computador y en celular (en iPhone, abrirlo desde un link; ver más abajo).
 
 **Exportar para Fire Studio** (menú ☰)
-- `.zip` con las fotos renombradas en orden (`001_Nombre.jpg`), con luz y contraste igualados entre fotos (opcional).
+- `.zip` con las fotos renombradas en orden (`001_Nombre.jpg`), con luz y contraste igualados entre fotos (opcional). Calidad a elegir: **Estándar 1920 px**, **Alta 2560 px** (por defecto) o **Máxima 3200 px**.
 - `hoja_enlaces.html`: cada diapositiva con sus flechas (ícono de la librería *Nav Icons*, posición, tamaño, destino) y sus efectos (librería sugerida, posición, tamaño, nota).
 - `enlaces.csv` y `efectos.csv`.
 - `proyecto_recorrido.json` para seguir editando.
 - **Cambios pendientes**: después de "Marcar como aplicado", la herramienta lista solo lo que hay que corregir en Fire Studio.
 
 **Proyectos**
-- **Recientes**: los recorridos quedan guardados en el navegador y se reabren desde el menú.
+- **Recientes**: los recorridos quedan guardados en el navegador, **con sus fotos en buena resolución**, y se reabren desde el menú. Si un proyecto viene solo con miniaturas (por ejemplo, un `.json` abierto en otro computador), al exportar avisa para cargar los originales.
 - **Guardar proyecto** (`Ctrl+S`) descarga un `.json` con fecha y hora en el nombre.
 - **Abrir proyecto** acepta el `.json` o el `.zip` exportado (recupera también las fotos).
 

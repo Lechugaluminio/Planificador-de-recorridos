@@ -359,18 +359,18 @@ function ask(title,text,yes='Aceptar'){return new Promise(r=>{
 function persist(){try{const th={};for(const n of S.nodes)if(IM[n.id])th[n.id]=IM[n.id].thumb;localStorage.setItem(LS,JSON.stringify({S,th}));}catch(e){}stashSoon();}
 /* --- recorridos guardados en este navegador (Recientes) --- */
 let IDBP=null;
-function idb(){if(IDBP)return IDBP;IDBP=new Promise(res=>{try{const r=indexedDB.open('fs-recorridos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);}catch(e){res(null);}});return IDBP;}
-async function idbDo(mode,fn){const db=await idb();if(!db)return null;return new Promise(res=>{try{const tx=db.transaction('p',mode);const r=fn(tx.objectStore('p'));tx.oncomplete=()=>res(r&&r.result!==undefined?r.result:true);tx.onerror=tx.onabort=()=>res(null);}catch(e){res(null);}});}
+function idb(){if(IDBP)return IDBP;IDBP=new Promise(res=>{try{const r=indexedDB.open('fs-recorridos',2);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('p'))db.createObjectStore('p',{keyPath:'id'});if(!db.objectStoreNames.contains('img'))db.createObjectStore('img');};r.onsuccess=()=>res(r.result);r.onerror=()=>res(null);}catch(e){res(null);}});return IDBP;}
+async function idbDo(mode,fn,store='p'){const db=await idb();if(!db)return null;return new Promise(res=>{try{const tx=db.transaction(store,mode);const r=fn(tx.objectStore(store));tx.oncomplete=()=>res(r&&r.result!==undefined?r.result:true);tx.onerror=tx.onabort=()=>res(null);}catch(e){res(null);}});}
 function recordOf(){const th={};for(const n of S.nodes)if(IM[n.id])th[n.id]=IM[n.id].thumb;const c=S.startId&&IM[S.startId]?IM[S.startId].thumb:(IM[byNum()[0]?.id]?.thumb||'');
   return {id:S.pid,name:S.name,savedAt:Date.now(),fotos:S.nodes.filter(n=>!n.vacant).length,flechas:S.arrows.length,cover:c,S:JSON.parse(JSON.stringify(S)),th};}
 async function stash(){clearTimeout(ui.idbT);if(!S||!S.nodes||!S.nodes.length)return;await idbDo('readwrite',st=>st.put(recordOf()));}
 function stashSoon(){clearTimeout(ui.idbT);ui.idbT=setTimeout(stash,700);}
 async function listRecent(){const all=await idbDo('readonly',st=>st.getAll());return Array.isArray(all)?all.sort((a,b)=>b.savedAt-a.savedAt):null;}
 function resetUI(){ui.undo=[];ui.redo=[];ui.cur=byNum()[0]?.id||null;ui.selArrow=null;ui.selFx=null;ui.playCur=null;ui.history=[];ui.view='edit';ui.mode='arrow';ui.normKey=null;hidePop();}
-async function switchProject(nS,thumbs){await stash();S=nS;norm();for(const id in (thumbs||{}))if(!IM[id])IM[id]={thumb:thumbs[id],src:null,file:null};resetUI();persist();render();}
+async function switchProject(nS,thumbs){await stash();S=nS;norm();for(const id in (thumbs||{}))if(!IM[id])IM[id]={thumb:thumbs[id],src:null,file:null};resetUI();persist();render();await hydrateHi();}
 async function newRecorrido(){const had=S.nodes.length;await stash();S=newProject();resetUI();persist();render();toast(had?'Recorrido nuevo · el anterior quedó guardado en Menú › Recientes':'Recorrido nuevo');}
 async function openRecent(id){if(id===S.pid){closeMenu();return;}const r=await idbDo('readonly',st=>st.get(id));if(!r||!r.S){toast('No se pudo abrir ese recorrido');return;}
-  await switchProject(r.S,r.th);const miss=S.nodes.filter(n=>!n.vacant&&!(IM[n.id]&&(IM[n.id].src||IM[n.id].file))).length;
+  await switchProject(r.S,r.th);const miss=S.nodes.filter(n=>!n.vacant&&!hasHi(n.id)).length;
   toast(`Abierto «${S.name}»`+(miss?` · para exportar, vuelve a cargar sus fotos (+ Fotos)`:''));}
 async function deleteRecent(id,name){if(!await ask('¿Borrar de Recientes?',`«${esc(name)}» se quitará de la lista de este navegador. Si tienes guardado su proyecto (.json o .zip) lo puedes volver a abrir igual.`,'Borrar'))return;await idbDo('readwrite',st=>st.delete(id));renderMenu();fillEmptyRecent();}
 const when=t=>{const d=new Date(t),n=new Date();const hm=d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:false});return d.toDateString()===n.toDateString()?'hoy '+hm:d.toLocaleDateString('es-CL',{day:'numeric',month:'short'})+' '+hm;};
@@ -410,14 +410,14 @@ async function addFiles(files){
     const src=URL.createObjectURL(f);
     let img;try{img=await loadImg(src);}catch(e){continue;}
     const thumb=await makeThumb(img);
-    const hasFull=n=>IM[n.id]&&(IM[n.id].file||IM[n.id].src);
+    const hasFull=n=>hasHi(n.id);
     let ex=S.nodes.find(n=>n.file===f.name&&!hasFull(n));
     const mnum=f.name.match(/^(\d{3,})_/);
     if(!ex&&mnum)ex=S.nodes.find(n=>n.num===+mnum[1]&&!n.vacant&&!hasFull(n));
-    if(ex){IM[ex.id]={src,thumb,file:f};ex.w=img.naturalWidth;ex.h=img.naturalHeight;relinked++;continue;}
+    if(ex){IM[ex.id]={src,thumb,file:f,hi:true};ex.w=img.naturalWidth;ex.h=img.naturalHeight;relinked++;await storeHi(ex.id,f);continue;}
     const id=uid();
     S.nodes.push({id,num:S.nextNum++,name:f.name.replace(/\.[^.]+$/,''),file:f.name,w:img.naturalWidth,h:img.naturalHeight,vacant:false,final:false});
-    IM[id]={src,thumb,file:f};
+    IM[id]={src,thumb,file:f,hi:true};await storeHi(id,f);
     if(!S.startId)S.startId=id;
     if(!ui.cur)ui.cur=id;
     added++;
@@ -427,10 +427,39 @@ async function addFiles(files){
 }
 async function replacePhoto(id,f){
   const src=URL.createObjectURL(f);const img=await loadImg(src);const thumb=await makeThumb(img);
-  mutate(()=>{const n=node(id);n.file=f.name;n.w=img.naturalWidth;n.h=img.naturalHeight;if(n.vacant){n.vacant=false;}IM[id]={src,thumb,file:f};});
+  mutate(()=>{const n=node(id);n.file=f.name;n.w=img.naturalWidth;n.h=img.naturalHeight;if(n.vacant){n.vacant=false;}IM[id]={src,thumb,file:f,hi:true};});storeHi(id,f);
   toast(`Diapositiva ${node(id).num}: foto reemplazada (mismo número, mismas flechas de llegada)`);
 }
 function imgSrc(id){return IM[id]?.src||IM[id]?.thumb||'';}
+/* --- fotos en buena resolución guardadas en el navegador (para no depender de los originales) --- */
+const STORE_W=3200;
+/* calidades de exportación */
+const QZIP={std:{w:1920,q:.92,es:'Estándar · 1920 px'},alta:{w:2560,q:.94,es:'Alta · 2560 px'},max:{w:3200,q:.95,es:'Máxima · 3200 px'}};
+const QPRES={cel:{w:1280,q:.8,es:'Liviana · celular (1280 px)'},alta:{w:1920,q:.9,es:'Alta · pantalla grande (1920 px)'}};
+const zipQ=()=>QZIP[S.zipQ]||QZIP.alta, presQ=()=>QPRES[S.presQ]||QPRES.cel;
+const qSel=(id,Q,cur)=>`<select id="${id}" style="background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px;color:var(--text);margin:0 0 10px;width:100%">${Object.keys(Q).map(k=>`<option value="${k}" ${k===cur?'selected':''}>${Q[k].es}</option>`).join('')}</select>`;
+const hasHi=id=>!!(IM[id]&&(IM[id].file||IM[id].hi));
+async function storeHi(id,source){
+  try{let bmp=null,img=null;
+    if(source instanceof Blob){try{bmp=await createImageBitmap(source,{imageOrientation:'from-image'});}catch(e){img=await loadImg(URL.createObjectURL(source));}}
+    else img=await loadImg(source);
+    const sw=bmp?bmp.width:img.naturalWidth,sh=bmp?bmp.height:img.naturalHeight,w=Math.min(STORE_W,sw),h=Math.round(sh*w/sw);
+    const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(bmp||img,0,0,w,h);
+    const b=await new Promise(r=>c.toBlob(r,'image/jpeg',.92));if(b)await idbDo('readwrite',st=>st.put(b,id),'img');
+  }catch(e){}
+}
+async function hydrateHi(){
+  if(!S||!S.nodes)return 0;let n=0;
+  for(const m of S.nodes){if(m.vacant||hasHi(m.id))continue;
+    const b=await idbDo('readonly',st=>st.get(m.id),'img');
+    if(b instanceof Blob){IM[m.id]={...(IM[m.id]||{}),src:URL.createObjectURL(b),hi:true};n++;}}
+  if(n)render();return n;
+}
+async function checkHi(){
+  await hydrateHi();
+  const low=byNum().filter(n=>!n.vacant&&!hasHi(n.id));if(!low.length)return true;
+  return ask('Fotos en baja resolución',`${low.length===1?'1 foto solo tiene':low.length+' fotos solo tienen'} la miniatura guardada (${low.slice(0,8).map(n=>pad(n.num)).join(', ')}${low.length>8?'…':''}), así que saldría${low.length===1?'':'n'} borrosa${low.length===1?'':'s'}.<br><br>Para exportar en buena calidad, cancela y carga las fotos originales con <b>Menú ☰ → Importar fotos</b>: se reconectan solas por nombre y quedan guardadas para la próxima vez.`,'Exportar igual');
+}
 
 /* ---------- checks ---------- */
 function reach(){const seen=new Set();if(!S.startId)return seen;const q=[S.startId];while(q.length){const id=q.shift();if(seen.has(id))continue;seen.add(id);S.arrows.filter(a=>a.from===id).forEach(a=>{const t=node(a.to);if(t&&!t.vacant)q.push(a.to);});}return seen;}
@@ -443,7 +472,7 @@ function issues(){
     if(!outs.length&&!n.final)l.push({lvl:'warn',t:'No tiene flechas de salida (si es el foco del fuego, márcala como foco).'});
     outs.forEach(a=>{const t=node(a.to);if(!t||t.vacant)l.push({lvl:'bad',t:`Una flecha apunta a la diapositiva ${t?t.num:'?'} que está vacante.`});});
     if(!IM[n.id])l.push({lvl:'warn',t:'Falta la foto original (vuelve a cargarla para exportar).'});
-    else if(!IM[n.id].file&&!IM[n.id].src)l.push({lvl:'warn',t:'Falta la foto original.'});
+    else if(!hasHi(n.id))l.push({lvl:'warn',t:'Solo hay miniatura: carga la foto original para exportar en buena calidad.'});
     out[n.id]=l;
   }
   return out;
@@ -843,9 +872,9 @@ function renderExp(){
   <div class="hint">${live.filter(n=>!n.vacant).length} fotos · ${S.arrows.length} flechas · ${S.effects.length} efectos · ${nIss?`<span style="color:var(--warn)">${nIss} cosa(s) por revisar en Editar</span>`:'<span style="color:var(--ok)">sin problemas detectados</span>'}</div>
   ${live.filter(n=>!n.vacant).length>MAX_ESC?`<div class="warnbox" style="margin-top:12px">Este proyecto tiene <b>${live.filter(n=>!n.vacant).length} fotos</b>: la versión tablet de Fire Studio carga bien hasta ${MAX_ESC}. Úsalo como master en computador, o separa escenarios desde el <b>Mapa</b> (selecciona fotos → 🎬 Crear escenario).</div>`:''}
   <div class="cards">
-    <div class="card"><h4>1 · Paquete completo</h4><p>Fotos renombradas en orden (<span class="mono">001_…jpg</span>) y ajustadas a <input type="number" id="ew" value="${S.exportWidth}" style="width:80px;display:inline-block"> px de ancho, más la hoja de enlaces, CSV y el proyecto.</p><button class="pri" id="bZip">Descargar .zip</button></div>
+    <div class="card"><h4>1 · Paquete completo</h4><p>Para Fire Studio: fotos renombradas en orden (<span class="mono">001_…jpg</span>), hoja de enlaces, CSV y proyecto.</p>${qSel('qZip',QZIP,S.zipQ||'alta')}<button class="pri" id="bZip">Descargar .zip</button></div>
     <div class="card"><h4>2 · Solo la hoja de enlaces</h4><p>Página para tener al lado mientras armas: cada diapositiva con sus flechas, ícono y destino.</p><button id="bSheet">Hoja (.html)</button> <button id="bCsv">CSV flechas</button> <button id="bCsvFx">CSV efectos</button></div>
-    <div class="card"><h4>Presentación (modo prueba)</h4><p>Un solo archivo .html para mostrar el escenario: se navega con las flechas, con fuego y humo animados, y no se puede editar. Se abre con doble clic en cualquier computador.</p><button class="pri" id="bPlayer2">Descargar presentación</button></div>
+    <div class="card"><h4>Presentación (modo prueba)</h4><p>Un solo archivo .html para mostrar el escenario: se navega con las flechas, con fuego y humo animados, y no se puede editar. Se abre con doble clic en cualquier computador.</p>${qSel('qPres',QPRES,S.presQ||'cel')}<button class="pri" id="bPlayer2">Descargar presentación</button></div>
     <div class="card"><h4>3 · Después de armarlo</h4><p>Marca este estado como aplicado. Si después cambias algo, aquí verás <b>solo lo que hay que corregir</b> en Fire Studio.</p><button id="bApplied">Marcar como aplicado</button>${S.applied?`<div class="hint" style="margin-top:6px">Último: ${esc(S.appliedAt||'')}</div>`:''}</div>
   </div>
   <label class="chk" style="margin:-6px 0 14px"><input type="checkbox" id="cNorm" ${normOn()?'checked':''}>Igualar luz y contraste entre fotos al exportar (zip y presentación). Los originales no se modifican; se ve así en Probar.</label>
@@ -855,7 +884,8 @@ function renderExp(){
   <table><thead><tr><th>Diap.</th><th>Foto</th><th>Nombre / archivo</th><th>Flechas (capa · posición → destino)</th><th>Efectos a poner</th></tr></thead><tbody>${rows}</tbody></table>
   <div style="margin:26px 0 8px" class="hint">¿Todavía no armas nada en Fire Studio? Puedes renumerar todo siguiendo el recorrido (y eliminar las vacantes). <button id="bRenum">Renumerar por recorrido</button></div>
   </div>`;
-  $('#ew').onchange=e=>mutate(()=>S.exportWidth=Math.max(640,Math.min(8000,+e.target.value||1920)));
+  $('#qZip').onchange=e=>mutate(()=>S.zipQ=e.target.value);
+  $('#qPres').onchange=e=>mutate(()=>S.presQ=e.target.value);
   $('#bZip').onclick=exportZip;
   $('#bPlayer2').onclick=downloadPlayer;
   $('#cNorm').onchange=e=>mutate(()=>S.normalize=e.target.checked);
@@ -892,7 +922,7 @@ async function createScenario(ids){
   const ok=await ask('Crear escenario con la selección',`Se crea un proyecto nuevo con estas <b>${ids.length} fotos</b> (máx. ${MAX_ESC}), sus conexiones y efectos, numerado desde 1 siguiendo el recorrido. El master no cambia y queda en Recientes.${out?`<br><span style="color:var(--warn)">${out} flecha(s) apuntan a fotos que no están en la selección y no se copian.</span>`:''}<br><br>Nombre<input type="text" id="scN" ${sty} value="${esc(S.name.replace(/ · master$/i,''))} · escenario">Inicio<select id="scS" ${sty}>${opt(st)}</select>Foco<select id="scF" ${sty}>${opt(fo,true)}</select>`,'Crear escenario');
   if(!ok)return;
   const name=($('#scN').value||'').trim()||(S.name+' · escenario'),start=$('#scS').value,foco=$('#scF').value;
-  const P=newProject();P.name=name;P.parent={pid:S.pid,name:S.name};P.exportWidth=S.exportWidth;P.normalize=S.normalize;
+  const P=newProject();P.name=name;P.parent={pid:S.pid,name:S.name};P.exportWidth=S.exportWidth;P.normalize=S.normalize;P.zipQ=S.zipQ;P.presQ=S.presQ;
   P.nodes=L.map(n=>({...JSON.parse(JSON.stringify(n)),mx:null,my:null,final:foco?n.id===foco:!!n.final}));
   P.arrows=S.arrows.filter(a=>set.has(a.from)&&set.has(a.to)).map(a=>({...a,id:uid()}));
   P.effects=S.effects.filter(f=>set.has(f.on)).map(f=>({...f,id:uid()}));
@@ -988,7 +1018,7 @@ async function buildPlayer(onProgress){
   const live=byNum().filter(n=>!n.vacant);if(!live.length)throw new Error('no hay fotos');
   const ids=new Set(live.map(n=>n.id));const slides=[];let i=0;const luts=normOn()?await normPlan():{};
   for(const n of live){onProgress&&onProgress(++i,live.length);
-    const u=await exportImage(n,1600,.85,luts[n.id]);const img=u8ToDataURL(u);const im=await loadImg(img);
+    const u=await exportImage(n,presQ().w,presQ().q,luts[n.id]);const img=u8ToDataURL(u);const im=await loadImg(img);
     slides.push({id:n.id,name:n.name,img,w:im.naturalWidth,h:im.naturalHeight,final:!!n.final,
       arrows:S.arrows.filter(a=>a.from===n.id&&ids.has(a.to)).map(a=>({x:a.x,y:a.y,k:a.scale||1,to:a.to,svg:arrowSVG(a.type),t:node(a.to).name})),
       fx:S.effects.filter(f=>f.on===n.id).map(f=>({type:f.type,x:f.x,y:f.y,scale:f.scale||1}))});}
@@ -1049,18 +1079,20 @@ render();
 <\/script></body></html>`;
 }
 async function downloadPlayer(){
+  if(!await checkHi())return;
   const btns=[$('#bPlayer'),$('#bPlayer2')].filter(Boolean);btns.forEach(b=>{b.disabled=true;b._t=b._t||b.textContent;});
   try{const html=await buildPlayer((i,n)=>btns.forEach(b=>b.textContent=`Preparando ${i}/${n}…`));
-    await saveFile(`presentacion_${slug(S.name)}_${stamp()}.html`,new Blob([html],{type:'text/html'}));}
+    await saveFile(`presentacion_${slug(S.name)}_${S.presQ==='alta'?'alta':'celular'}_${stamp()}.html`,new Blob([html],{type:'text/html'}));}
   catch(e){toast('No se pudo crear la presentación: '+e.message);}
   btns.forEach(b=>{b.disabled=false;b.textContent=b._t;});
 }
 async function exportZip(){
+  if(!await checkHi())return;
   const btn=$('#bZip');btn.disabled=true;const enc=new TextEncoder();const files=[];const folder=slug(S.name);
   try{
     const live=byNum().filter(n=>!n.vacant);let i=0;
     if(normOn())btn.textContent='Igualando luz…';const luts=normOn()?await normPlan():{};
-    for(const n of live){btn.textContent=`Preparando ${++i}/${live.length}…`;files.push({name:`${folder}/fotos/${outName(n)}`,data:await exportImage(n,S.exportWidth,.92,luts[n.id])});}
+    for(const n of live){btn.textContent=`Preparando ${++i}/${live.length}…`;files.push({name:`${folder}/fotos/${outName(n)}`,data:await exportImage(n,zipQ().w,zipQ().q,luts[n.id])});}
     files.push({name:`${folder}/hoja_enlaces.html`,data:enc.encode(await sheetHTML())});
     files.push({name:`${folder}/enlaces.csv`,data:enc.encode('﻿'+csv())});
     files.push({name:`${folder}/efectos.csv`,data:enc.encode('﻿'+csvFx())});
@@ -1115,7 +1147,7 @@ async function openZip(f){
       const m=fotos.find(x=>{const b=x.name.split('/').pop();const mm=b.match(/^(\d{3,})_/);return mm&&+mm[1]===n.num;});
       if(!m)continue;
       const blob=await m.get();const src=URL.createObjectURL(new Blob([blob],{type:'image/jpeg'}));
-      try{const img=await loadImg(src);n.w=img.naturalWidth;n.h=img.naturalHeight;IM[n.id]={src,thumb:IM[n.id]?.thumb||await makeThumb(img),file:null};ok++;}catch(e){}
+      try{const img=await loadImg(src);n.w=img.naturalWidth;n.h=img.naturalHeight;IM[n.id]={src,thumb:IM[n.id]?.thumb||await makeThumb(img),file:null,hi:true};ok++;storeHi(n.id,blob);}catch(e){}
     }
     persist();render();
     const live=S.nodes.filter(n=>!n.vacant).length;
@@ -1126,7 +1158,7 @@ async function loadDemo(){
   await stash();S=newProject();S.name='Ejemplo · Monte Carmelo';
   const names={'DSC08389':'Esquina · calle','DSC08409':'Patio · entrada','DSC08410':'Patio · frente iglesia','DSC08411':'Patio · ala lateral','DSC08414':'Torre · fachada','DSC08415':'Hall · escalera','DSC08416':'Nave iglesia','DSC08437':'Escalera · descanso','DSC08438':'Escalera · puerta salón','DSC08445':'Salón vitrales','DSC08447':'Escalera a vitrales'};
   const ids={};
-  for(const d of DEMO){const k=d.file.replace(/\.[^.]+$/,'');const id=uid();ids[k]=id;S.nodes.push({id,num:S.nextNum++,name:names[k]||k,file:d.file,w:d.w,h:d.h,vacant:false,final:false});IM[id]={src:d.src,thumb:d.src,file:null};}
+  for(const d of DEMO){const k=d.file.replace(/\.[^.]+$/,'');const id=uid();ids[k]=id;S.nodes.push({id,num:S.nextNum++,name:names[k]||k,file:d.file,w:d.w,h:d.h,vacant:false,final:false});IM[id]={src:d.src,thumb:d.src,file:null,hi:true};}
   const L=(a,b,type,x,y,back=true)=>{if(!ids[a]||!ids[b])return;S.arrows.push({id:uid(),from:ids[a],to:ids[b],type,x,y});if(back)S.arrows.push({id:uid(),from:ids[b],to:ids[a],type:'down',x:.5,y:.86});};
   L('DSC08389','DSC08409','ul',.2,.62);
   L('DSC08409','DSC08410','up',.5,.62);
@@ -1235,6 +1267,7 @@ S=newProject();
 try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d&&d.S&&d.S.nodes){S=d.S;for(const id in (d.th||{}))IM[id]={thumb:d.th[id],src:null,file:null};
   if(S.name&&S.name.startsWith('Ejemplo')&&DEMO.length){for(const n of S.nodes){const m=DEMO.find(x=>x.file===n.file);if(m)IM[n.id]={src:m.src,thumb:m.src,file:null};}}}}catch(e){}
 norm();ui.cur=byNum()[0]?.id||null;
+setTimeout(()=>{hydrateHi();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}},50);
 render();
 </script>
 </body>

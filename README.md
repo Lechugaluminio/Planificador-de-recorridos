@@ -4,7 +4,7 @@
 
 - **Aplicación publicada:** https://lechugaluminio.github.io/Planificador-de-recorridos/
 - **Video (30–60 s):** *(completar con el enlace)*
-- Proyecto personal de Daniel Victoriano · Diseño Industrial UDP. Hecho para el entrenamiento de bomberos con Fire Studio 7 (licencia de instructor).
+- Proyecto personal de [Lechugaluminio](https://github.com/Lechugaluminio). Hecho para el entrenamiento de bomberos con Fire Studio 7 (licencia de instructor).
 
 ![Escenario «Fuego en cocina»: vista desde la máscara, humo ambiente y fuego animado](planificador-recorridos/docs/editar-fuego-cocina.jpg)
 
@@ -134,9 +134,9 @@ Link para el teléfono: https://lechugaluminio.github.io/Planificador-de-recorri
 
 | Elemento | Autor | Licencia / nota |
 |---|---|---|
-| Concepto, flujo de trabajo y decisiones de diseño | Daniel Victoriano | Proyecto propio |
-| Fotografías del ejemplo «Fuego en cocina» (Monte Carmelo, Santiago) | Daniel Victoriano | Propias. Incluidas reducidas en `src/demo.json`; si el repositorio es público, también lo son |
-| Código de la aplicación, motor de efectos (`fxengine.js`) y ayudante AutoHotkey | Daniel Victoriano con asistencia de [Claude](https://anthropic.com) (Anthropic) | Sin librerías externas: HTML, CSS y JavaScript |
+| Concepto, flujo de trabajo y decisiones de diseño | [Lechugaluminio](https://github.com/Lechugaluminio) | Proyecto propio |
+| Fotografías del ejemplo «Fuego en cocina» (Monte Carmelo, Santiago) | [Lechugaluminio](https://github.com/Lechugaluminio) | Propias. Incluidas reducidas en `src/demo.json`; si el repositorio es público, también lo son |
+| Código de la aplicación, motor de efectos (`fxengine.js`) y ayudante AutoHotkey | [Lechugaluminio](https://github.com/Lechugaluminio) con asistencia de [Claude](https://anthropic.com) (Anthropic) | Sin librerías externas: HTML, CSS y JavaScript |
 | Fuego, humo, humo ambiente y máscara | Generados con código (partículas en canvas) | Sin imágenes ni videos de terceros |
 | Íconos de flechas y efectos | Dibujados en SVG dentro de la app | Equivalentes a *Nav Icons*, pero no son los archivos de Fire Studio |
 | Fire Studio 7 | Digital Combustion, Inc. | Programa con licencia; marca de su dueño |

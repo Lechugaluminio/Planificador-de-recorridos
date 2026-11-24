@@ -249,9 +249,9 @@ kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--panel2
     <div class="menuw"><button id="bMenu" title="Menú"><span class="bars">☰</span><span class="logo"><i></i>Recorridos</span><span style="color:var(--mute);font-size:11px">▾</span></button><div id="menu"></div></div>
     <input id="pname" type="text" title="Nombre del escenario">
     <nav class="tabs" id="tabs">
+      <button data-v="play" title="Probar (Q)">Probar</button>
+      <button data-v="map" title="Mapa (W)">Mapa</button>
       <button data-v="edit" class="on" title="Editar (E)">Editar</button>
-      <button data-v="map" title="Mapa (R)">Mapa</button>
-      <button data-v="play" title="Probar (T)">Probar</button>
     </nav>
     <div class="sp"></div>
     <button class="ghost" id="bUndo" title="Deshacer (Ctrl+Z)">↶</button>
@@ -1317,8 +1317,8 @@ document.addEventListener('keydown',e=>{
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'&&!typing){e.preventDefault();redo();return;}
   if(typing)return;
   if(e.key==='Escape')hidePop();
-  // E editar · R mapa · T probar (en Editar, E sigue alternando Flechas/Efectos)
-  if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&$('#modal').style.display!=='grid'){const k=e.key.toLowerCase(),to={e:'edit',r:'map',t:'play'}[k];
+  // Q probar · W mapa · E editar (orden QWE de las pestañas) (en Editar, E sigue alternando Flechas/Efectos)
+  if(!e.ctrlKey&&!e.metaKey&&!e.altKey&&$('#modal').style.display!=='grid'){const k=e.key.toLowerCase(),to={q:'play',w:'map',e:'edit'}[k];
     if(to&&!(k==='e'&&ui.view==='edit')){if(to!==ui.view){e.preventDefault();ae?.blur?.();document.querySelector(`#tabs button[data-v="${to}"]`)?.click();}return;}}
   if(ui.view==='edit'){
     if((e.key==='Delete'||e.key==='Backspace')&&ui.selArrow){e.preventDefault();mutate(()=>{S.arrows=S.arrows.filter(a=>a.id!==ui.selArrow);ui.selArrow=null;});}

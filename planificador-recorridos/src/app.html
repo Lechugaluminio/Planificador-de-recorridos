@@ -74,7 +74,7 @@ main{overflow:hidden;position:relative}
 .al.sel{border-color:var(--fire)}
 .al svg{width:28px;height:28px}
 .al small{color:var(--mute);display:block;font-size:11px}
-.flag{width:32px;height:32px;padding:0;font-size:16px;line-height:1;opacity:.45;flex:none}.flag:hover{opacity:.85}.flag.on{opacity:1;color:var(--fire2);border-color:var(--fire2)}
+.flag{width:38px;height:38px;padding:0;display:grid;place-items:center;opacity:.4;filter:grayscale(.6);flex:none}.flag.on{filter:none}.flag:hover{opacity:.85}.flag.on{opacity:1;color:var(--fire2);border-color:var(--fire2)}
 .envpick{max-height:300px;overflow:auto;margin-top:10px;display:grid;gap:4px}.envpick label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.envpick img{width:54px;height:34px;object-fit:cover;border-radius:3px}
 .al .tn{position:relative;width:72px;height:46px;border-radius:5px;overflow:hidden;background:#000;border:1px solid var(--line,#333);padding:0;cursor:pointer;flex:none}
 .al .tn img{width:100%;height:100%;object-fit:cover;display:block}
@@ -444,6 +444,8 @@ async function replacePhoto(id,f){
   mutate(()=>{const n=node(id);n.file=f.name;n.w=img.naturalWidth;n.h=img.naturalHeight;if(n.vacant){n.vacant=false;}IM[id]={src,thumb,file:f,hi:true};});storeHi(id,f);
   toast(`Diapositiva ${node(id).num}: foto reemplazada (mismo número, mismas flechas de llegada)`);
 }
+const ICO_START='<svg viewBox="0 0 24 24" width="25" height="25"><rect x="3.6" y="2" width="2" height="20.5" rx="1" fill="#cfcfcf"/><rect x="6.0" y="3.0" width="3.5" height="3.5" fill="#111"/><rect x="9.5" y="3.0" width="3.5" height="3.5" fill="#fff"/><rect x="13.0" y="3.0" width="3.5" height="3.5" fill="#111"/><rect x="16.5" y="3.0" width="3.5" height="3.5" fill="#fff"/><rect x="6.0" y="6.5" width="3.5" height="3.5" fill="#fff"/><rect x="9.5" y="6.5" width="3.5" height="3.5" fill="#111"/><rect x="13.0" y="6.5" width="3.5" height="3.5" fill="#fff"/><rect x="16.5" y="6.5" width="3.5" height="3.5" fill="#111"/><rect x="6.0" y="10.0" width="3.5" height="3.5" fill="#111"/><rect x="9.5" y="10.0" width="3.5" height="3.5" fill="#fff"/><rect x="13.0" y="10.0" width="3.5" height="3.5" fill="#111"/><rect x="16.5" y="10.0" width="3.5" height="3.5" fill="#fff"/><rect x="6" y="3" width="14" height="10.5" fill="none" stroke="#888" stroke-width=".6"/></svg>';
+const ICO_FOCO='<svg viewBox="0 0 24 24" width="25" height="25"><path d="M12 4.5c1 3.3 4.7 4.7 4.7 8.7a4.7 4.7 0 0 1-9.4 0c0-2.7 1.7-3.7 2-6 1.7 1 2.7 2.7 2.7 4.3 1-1.7 1-4.3 0-7z" fill="#ff5a1f"/><path d="M12 10.5c.5 1.6 2.3 2.3 2.3 4.2a2.3 2.3 0 0 1-4.6 0c0-1.3.8-1.8 1-3 .7.5 1.3 1.3 1.3 2.1.5-.8.5-2.1 0-3.3z" fill="#ffd34d"/><g fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="8.6"/><path d="M12 1.2v4M12 18.8v4M1.2 12h4M18.8 12h4"/></g></svg>';
 function envOf(n){return {amb:n.amb||0,plane:n.plane==null?.55:n.plane,mask:!!n.mask};}
 function hasEnv(n){return (n.amb||0)>0||!!n.mask;}
 function tnHTML(n,title){return `<button class="tn" data-go="${n.id}" title="${title}">${n.vacant?'':`<img src="${IM[n.id]?.thumb||imgSrc(n.id)}" alt="">`}<b>${pad(n.num)}</b></button>`;}
@@ -680,7 +682,7 @@ function renderPanel(n,iss){
   const ins=S.arrows.filter(a=>a.to===n.id);
   const sel=S.arrows.find(a=>a.id===ui.selArrow&&a.from===n.id);
   let h=`<h3>Diapositiva</h3>
-  <div class="row"><div class="mono" style="font-size:28px;color:var(--fire2);line-height:1">${pad(n.num)}</div><div class="hint">número fijo en Fire Studio</div>${n.vacant?'':`<div style="flex:1"></div><button class="flag ${S.startId===n.id?'on':''}" id="nstart" title="${S.startId===n.id?'Esta foto es el punto de partida':'Marcar como punto de partida'}">⚑</button><button class="flag ${n.final?'on':''}" id="nfinal" title="${n.final?'Esta foto es el foco / final (clic para quitar)':'Marcar como foco / final'}">◎</button>`}</div>
+  <div class="row"><div class="mono" style="font-size:28px;color:var(--fire2);line-height:1">${pad(n.num)}</div><div class="hint">número fijo en Fire Studio</div>${n.vacant?'':`<div style="flex:1"></div><button class="flag ${S.startId===n.id?'on':''}" id="nstart" title="${S.startId===n.id?'Esta foto es el punto de partida':'Marcar como punto de partida'}">${ICO_START}</button><button class="flag ${n.final?'on':''}" id="nfinal" title="${n.final?'Esta foto es el foco / final (clic para quitar)':'Marcar como foco / final'}">${ICO_FOCO}</button>`}</div>
   ${n.vacant?'':`<div class="row"><input type="text" id="nname" value="${esc(n.name)}" placeholder="Nombre (ej. Hall acceso)"></div>`}
   ${n.vacant?"":`<div class="row"><button id="nchain" title="Flecha Adelante a la siguiente foto y Volver desde ella">⛓ Encadenar con la siguiente</button></div>`}<div class="row"><button id="nrep">Reemplazar foto</button>${n.vacant?'':'<button class="danger" id="ndel">Quitar foto</button>'}</div>
   <div class="hint">Archivo: ${esc(n.file||'—')}</div>`;

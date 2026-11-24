@@ -469,10 +469,10 @@ function migFx(f){if(FX_LEGACY[f.type])f.type=FX_LEGACY[f.type];if(!FX[f.type])f
 function norm(){if(!S.pid)S.pid=uid();S.effects=S.effects||[];S.effects.forEach(migFx);if(S.applied)for(const k in S.applied){const fx=S.applied[k].fx;if(fx)for(const id in fx)migFx(fx[id]);}}
 
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2600);}
-function ask(title,text,yes='Aceptar'){return new Promise(r=>{
-  $('#mT').textContent=title;$('#mP').innerHTML=text;$('#mYes').textContent=yes;$('#modal').style.display='grid';
+function ask(title,text,yes='Aceptar',no='Cancelar'){return new Promise(r=>{
+  $('#mT').textContent=title;$('#mP').innerHTML=text;$('#mYes').textContent=yes;$('#mNo').textContent=no;$('#modal').style.display='grid';
   const done=v=>{$('#modal').style.display='none';document.removeEventListener('keydown',key,true);r(v);};
-  const key=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();done(true);}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(false);}else e.stopPropagation();};
+  const key=e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();done(true);}else if(e.key==='Escape'){e.preventDefault();e.stopPropagation();done(null);}else e.stopPropagation();};
   document.addEventListener('keydown',key,true);
   $('#mYes').onclick=()=>done(true);$('#mNo').onclick=()=>done(false);
   setTimeout(()=>{if(!$('#mP').querySelector('select,input'))$('#mYes').focus();},0);});}
@@ -522,19 +522,27 @@ function fixCur(){norm();if(!node(ui.cur))ui.cur=byNum()[0]?.id||null;if(!S.arro
 function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});}
 async function makeThumb(img,w=360){const c=document.createElement('canvas');const r=w/img.naturalWidth;c.width=w;c.height=Math.round(img.naturalHeight*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.72);}
 const natural=(a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true});
+/* clave para reconocer una foto aunque cambien mayúsculas, extensión o venga numerada desde un zip exportado */
+const fkey=nm=>String(nm||'').toLowerCase().replace(/\.[^.]+$/,'').trim();
+function findNodeFor(f){
+  const k=fkey(f.name),live=S.nodes.filter(n=>!n.vacant);
+  return live.find(n=>fkey(n.file)===k)                                   // mismo archivo original
+      || live.find(n=>fkey(outName(n))===k)                                // foto exportada «001_Nombre.jpg» de este proyecto
+      || live.find(n=>fkey(n.file)===k.replace(/^\d{3,}_/,''))             // «001_DSC08395» → DSC08395
+      || null;
+}
 async function addFiles(files){
-  files=[...files].filter(f=>f.type.startsWith('image/')).sort(natural);
+  files=[...files].filter(f=>f.type.startsWith('image/')||/\.(jpe?g|png|bmp|webp|gif|tiff?)$/i.test(f.name)).sort(natural);
   if(!files.length)return;
   snap();
-  let added=0,relinked=0;
+  let added=0,relinked=0,already=0,k=0;
   for(const f of files){
+    k++;if(files.length>3)toast(`Cargando fotos ${k}/${files.length}…`);
+    const ex=findNodeFor(f);
+    if(ex&&hasHi(ex.id)&&IM[ex.id].file){already++;continue;}   // ya está en alta en esta sesión: no duplicar
     const src=URL.createObjectURL(f);
     let img;try{img=await loadImg(src);}catch(e){continue;}
     const thumb=await makeThumb(img);
-    const hasFull=n=>hasHi(n.id);
-    let ex=S.nodes.find(n=>n.file===f.name&&!hasFull(n));
-    const mnum=f.name.match(/^(\d{3,})_/);
-    if(!ex&&mnum)ex=S.nodes.find(n=>n.num===+mnum[1]&&!n.vacant&&!hasFull(n));
     if(ex){IM[ex.id]={src,thumb,file:f,hi:true};ex.w=img.naturalWidth;ex.h=img.naturalHeight;relinked++;await storeHi(ex.id,f);continue;}
     const id=uid();
     S.nodes.push({id,num:S.nextNum++,name:f.name.replace(/\.[^.]+$/,''),file:f.name,w:img.naturalWidth,h:img.naturalHeight,vacant:false,final:false});
@@ -544,7 +552,8 @@ async function addFiles(files){
     added++;
   }
   commit();
-  toast(`${added} foto(s) agregada(s)`+(relinked?` · ${relinked} reconectada(s) a su diapositiva`:''));
+  const low=S.nodes.filter(n=>!n.vacant&&!hasHi(n.id)).length;
+  toast([relinked?`${relinked} foto(s) reconectada(s) en alta resolución`:'',added?`${added} foto(s) nueva(s)`:'',already?`${already} ya estaban`:'',low?`faltan ${low} en baja resolución`:'todas en alta resolución ✓'].filter(Boolean).join(' · '));
 }
 async function replacePhoto(id,f){
   const src=URL.createObjectURL(f);const img=await loadImg(src);const thumb=await makeThumb(img);
@@ -579,7 +588,10 @@ async function hydrateHi(){
 async function checkHi(){
   await hydrateHi();
   const low=byNum().filter(n=>!n.vacant&&!hasHi(n.id));if(!low.length)return true;
-  return ask('Fotos en baja resolución',`${low.length===1?'1 foto solo tiene':low.length+' fotos solo tienen'} la miniatura guardada (${low.slice(0,8).map(n=>pad(n.num)).join(', ')}${low.length>8?'…':''}), así que saldría${low.length===1?'':'n'} borrosa${low.length===1?'':'s'}.<br><br>Para exportar en buena calidad, cancela y carga las fotos originales con <b>Menú ☰ → Importar fotos</b>: se reconectan solas por nombre y quedan guardadas para la próxima vez.`,'Exportar igual');
+  const names=low.slice(0,6).map(n=>`${pad(n.num)} <span class="mono" style="color:var(--mute)">${esc(n.file||'')}</span>`).join('<br>');
+  const r=await ask('Fotos en baja resolución',`${low.length===1?'1 foto solo tiene':low.length+' fotos solo tienen'} la miniatura guardada, así que saldría${low.length===1?'':'n'} borrosa${low.length===1?'':'s'}:<br><br>${names}${low.length>6?`<br>… y ${low.length-6} más`:''}<br><br>Elige las fotos originales (puedes seleccionar toda la carpeta con <b>Ctrl+A</b>): se reconocen por su nombre de archivo y quedan guardadas en alta para la próxima vez.`,'Cargar fotos originales','Exportar igual');
+  if(r===true){$('#fFiles').click();return false;}
+  return r===false;
 }
 
 /* ---------- checks ---------- */

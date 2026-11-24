@@ -487,7 +487,7 @@ function recordOf(){const th={};for(const n of S.nodes)if(IM[n.id])th[n.id]=IM[n
 async function stash(){clearTimeout(ui.idbT);if(!S||!S.nodes||!S.nodes.length)return;await idbDo('readwrite',st=>st.put(recordOf()));}
 function stashSoon(){clearTimeout(ui.idbT);ui.idbT=setTimeout(stash,700);}
 async function listRecent(){const all=await idbDo('readonly',st=>st.getAll());return Array.isArray(all)?all.sort((a,b)=>b.savedAt-a.savedAt):null;}
-function resetUI(){ui.undo=[];ui.redo=[];ui.cur=byNum()[0]?.id||null;ui.selArrow=null;ui.selFx=null;ui.playCur=null;ui.history=[];ui.view='edit';ui.mode='arrow';ui.normKey=null;hidePop();}
+function resetUI(){ui.cam=S&&S.cam?{...S.cam}:null;ui.undo=[];ui.redo=[];ui.cur=byNum()[0]?.id||null;ui.selArrow=null;ui.selFx=null;ui.playCur=null;ui.history=[];ui.view='edit';ui.mode='arrow';ui.normKey=null;hidePop();}
 async function switchProject(nS,thumbs){await stash();S=nS;norm();for(const id in (thumbs||{}))if(!IM[id])IM[id]={thumb:thumbs[id],src:null,file:null};resetUI();persist();render();await hydrateHi();}
 async function newRecorrido(){const had=S.nodes.length;await stash();S=newProject();resetUI();persist();render();toast(had?'Recorrido nuevo · el anterior quedó guardado en Menú › Recientes':'Recorrido nuevo');}
 async function openRecent(id){if(id===S.pid){closeMenu();return;}const r=await idbDo('readonly',st=>st.get(id));if(!r||!r.S){toast('No se pudo abrir ese recorrido');return;}
@@ -820,11 +820,19 @@ function renderPanel(n,iss){
 }
 
 /* ---------- map ---------- */
-function autoLayout(){
+/* Coloca en el mapa solo las fotos que aún no tienen posición, sin mover las demás
+   (las nuevas van en una grilla a la derecha). Con full=true reordena todo. */
+function autoLayout(full){
+  const live=byNum().filter(n=>!n.vacant);
+  const placed=live.filter(n=>n.mx!=null&&n.my!=null);
+  if(!full&&placed.length){
+    const fresh=live.filter(n=>n.mx==null||n.my==null);if(!fresh.length)return;
+    const x0=Math.max(...placed.map(n=>n.mx))+MW+90,y0=Math.min(...placed.map(n=>n.my));
+    fresh.forEach((n,i)=>{n.mx=x0+Math.floor(i/6)*210;n.my=y0+(i%6)*120;});return;
+  }
   const depth={};const order=[];
   if(S.startId){const q=[[S.startId,0]];while(q.length){const [id,d]=q.shift();if(id in depth)continue;depth[id]=d;order.push(id);S.arrows.filter(a=>a.from===id).forEach(a=>{const t=node(a.to);if(t&&!t.vacant&&!(a.to in depth))q.push([a.to,d+1]);});}}
   let maxd=Math.max(0,...Object.values(depth));
-  const live=byNum().filter(n=>!n.vacant);
   const reached=Object.keys(depth).length;
   const cols={};order.forEach(id=>{const d=depth[id];(cols[d]=cols[d]||[]).push(id);});
   for(const d in cols)cols[d].forEach((id,i)=>{const n=node(id);n.mx=40+d*210;n.my=40+i*120;});
@@ -869,7 +877,7 @@ function renderMapTools(){
 }
 function renderMap(){
   const live=S.nodes.filter(n=>!n.vacant);
-  if(live.some(n=>n.mx==null))autoLayout();
+  if(live.some(n=>n.mx==null||n.my==null)){autoLayout(false);persist();}
   const iss=issues();const W=MW,H=MH;const SEL=mapSelSet();for(const id of [...SEL])if(!node(id)||node(id).vacant)SEL.delete(id);
   const done=new Set();let edges='';
   for(const a of S.arrows){
@@ -928,6 +936,7 @@ function applyMapZoom(){
   svg.style.width=w+'px';svg.style.height=h+'px';svg.style.transform=`translate(${c.tx}px,${c.ty}px)`;
   wrap.style.backgroundPosition=`${c.tx}px ${c.ty}px`;wrap.style.backgroundSize=`${22*Math.max(.6,Math.min(2,c.z))}px ${22*Math.max(.6,Math.min(2,c.z))}px`;
   $('#zPct').textContent=Math.round(c.z*100)+'%';
+  if(S){S.cam={z:c.z,tx:c.tx,ty:c.ty};clearTimeout(ui.camT);ui.camT=setTimeout(persist,500);}
 }
 function setMapZoom(z,cx,cy){
   const wrap=$('#mapwrap'),c=ui.cam||(ui.cam={z:1,tx:null,ty:null});if(c.tx===null)applyMapZoom();
@@ -1044,7 +1053,8 @@ async function createScenario(ids){
   if(!ok)return;
   const name=($('#scN').value||'').trim()||(S.name+' · escenario'),start=$('#scS').value,foco=$('#scF').value;
   const P=newProject();P.name=name;P.parent={pid:S.pid,name:S.name};P.exportWidth=S.exportWidth;P.normalize=S.normalize;P.zipQ=S.zipQ;P.presQ=S.presQ;
-  P.nodes=L.map(n=>({...JSON.parse(JSON.stringify(n)),mx:null,my:null,final:foco?n.id===foco:!!n.final}));
+  const hasPos=L.every(n=>n.mx!=null&&n.my!=null),ox=hasPos?Math.min(...L.map(n=>n.mx))-40:0,oy=hasPos?Math.min(...L.map(n=>n.my))-40:0;
+  P.nodes=L.map(n=>({...JSON.parse(JSON.stringify(n)),mx:hasPos?n.mx-ox:null,my:hasPos?n.my-oy:null,final:foco?n.id===foco:!!n.final}));
   P.arrows=S.arrows.filter(a=>set.has(a.from)&&set.has(a.to)).map(a=>({...a,id:uid()}));
   P.effects=S.effects.filter(f=>set.has(f.on)).map(f=>({...f,id:uid()}));
   P.startId=start;
@@ -1334,7 +1344,7 @@ $('#bStart').onclick=()=>{if(ui.cur&&!node(ui.cur).vacant)mutate(()=>S.startId=u
 $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
 $('#zIn').onclick=()=>setMapZoom((ui.cam?.z||1)*1.25);
 $('#zOut').onclick=()=>setMapZoom((ui.cam?.z||1)/1.25);
-$('#zFit').onclick=()=>{ui.cam={z:1,tx:null,ty:null};applyMapZoom();};
+$('#zFit').onclick=()=>{ui.cam={z:1,tx:null,ty:null};S.cam=null;applyMapZoom();};
 $('#mapwrap').addEventListener('wheel',e=>{e.preventDefault();const d=(e.deltaMode===1?e.deltaY*30:e.deltaY)*(e.ctrlKey?2.2:1);setMapZoom((ui.cam?.z||1)*Math.exp(-d*0.0018),e.clientX,e.clientY);},{passive:false});
 $('#mapwrap').addEventListener('pointerdown',e=>{if(e.target.closest('.mnode')||e.target.closest('.medge')||e.target.closest('#mapzoom')||e.button!==0)return;e.preventDefault();
   const w=$('#mapwrap'),c=ui.cam||(ui.cam={z:1,tx:null,ty:null});if(c.tx===null)applyMapZoom();const sx=e.clientX,sy=e.clientY,tx=c.tx,ty=c.ty;let moved=false;
@@ -1349,7 +1359,7 @@ $('#mapwrap').addEventListener('pointerdown',e=>{if(e.target.closest('.mnode')||
   const mv=ev=>{if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)>3)moved=true;c.tx=tx+(ev.clientX-sx);c.ty=ty+(ev.clientY-sy);applyMapZoom();};
   const up=()=>{w.classList.remove('panning');window.removeEventListener('pointermove',mv);window.removeEventListener('pointerup',up);if(!moved&&(mapSelSet().size||ui.mapEdge)){mapSelSet().clear();ui.mapEdge=null;renderMap();}};
   window.addEventListener('pointermove',mv);window.addEventListener('pointerup',up);});
-$('#bRelayout').onclick=()=>{ui.cam=null;mutate(autoLayout);};
+$('#bRelayout').onclick=async()=>{if(!await ask('¿Reordenar el mapa automáticamente?','Todas las fotos se acomodan en columnas según el recorrido y se pierde la distribución que hiciste a mano. Se puede deshacer con Ctrl+Z.','Reordenar'))return;ui.cam=null;S.cam=null;mutate(()=>autoLayout(true));};
 $('#bBack').onclick=()=>{if(ui.history.length){ui.playCur=ui.history.pop();renderPlay();}};
 document.querySelectorAll('#pview button').forEach(b=>b.onclick=()=>{ui.fxView=b.dataset.fv;renderPlay();});
 $('#bFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#playv').requestFullscreen();}catch(e){toast('Pantalla completa no disponible aquí');}};
@@ -1387,7 +1397,7 @@ let rt;window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>
 S=newProject();
 try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d&&d.S&&d.S.nodes){S=d.S;for(const id in (d.th||{}))IM[id]={thumb:d.th[id],src:null,file:null};
   if(S.name&&S.name.startsWith('Ejemplo')&&DEMO.length){for(const n of S.nodes){const m=DEMO.find(x=>x.file===n.file);if(m)IM[n.id]={src:m.src,thumb:m.src,file:null};}}}}catch(e){}
-norm();ui.cur=byNum()[0]?.id||null;
+norm();ui.cur=byNum()[0]?.id||null;ui.cam=S.cam?{...S.cam}:null;
 setTimeout(()=>{hydrateHi();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}},50);
 render();
 </script>

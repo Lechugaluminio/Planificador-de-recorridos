@@ -279,7 +279,7 @@ kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--panel2
     </section>
     <section class="view" id="playv">
       <div id="playstage"></div>
-      <div id="playbar"><button id="bBack">← Volver</button><button id="bHome">Inicio</button><div id="crumbs"></div><span class="seg" id="pview"><button data-fv="real">Realista</button><button data-fv="icons">Íconos</button><button data-fv="off">Sin efectos</button></span><button id="bFull" title="Pantalla completa">⛶</button><button class="pri" id="bPlayer">Descargar presentación</button></div>
+      <div id="playbar"><button id="bBack">← Volver</button><button id="bHome">Inicio</button><div id="crumbs"></div><span class="seg" id="pview"><button data-fv="real">Realista</button><button data-fv="icons">Íconos</button><button data-fv="off">Sin efectos</button></span><button id="bFull" title="Pantalla completa">⛶</button></div>
     </section>
     <section class="view" id="expv"></section>
     <div id="empty">
@@ -599,7 +599,7 @@ async function renderMenu(){
   const m=$('#menu');
   const it=(id,ic,t,k='')=>`<button class="mi" data-m="${id}"><span class="ic">${ic}</span>${t}${k?`<kbd>${k}</kbd>`:''}</button>`;
   m.innerHTML=it('new','＋','Nuevo recorrido')+it('add','🖼','Importar fotos…')+it('open','📂','Abrir proyecto (.json o .zip)…')+it('save','💾','Guardar proyecto','Ctrl+S')+'<hr>'+
-    it('exp','⇪','Exportar para Fire Studio…'+(S.applied&&changes().length?` <span class="badge" title="cambios pendientes para Fire Studio">${changes().length}</span>`:''))+it('pres','▶','Descargar presentación')+it('renum','#','Renumerar por recorrido…')+'<hr>'+it('demo','✦','Ver ejemplo (Monte Carmelo)')+'<hr><h5>Recientes en este navegador</h5><div id="mrec"><div class="hint" style="padding:6px 10px">Cargando…</div></div>';
+    it('exp','⇪','Exportar para Fire Studio…'+(S.applied&&changes().length?` <span class="badge" title="cambios pendientes para Fire Studio">${changes().length}</span>`:''))+it('renum','#','Renumerar por recorrido…')+'<hr>'+it('demo','✦','Ver ejemplo (Monte Carmelo)')+'<hr><h5>Recientes en este navegador</h5><div id="mrec"><div class="hint" style="padding:6px 10px">Cargando…</div></div>';
   m.querySelectorAll('.mi').forEach(b=>b.onclick=()=>{closeMenu();({new:newRecorrido,add:()=>$('#fFiles').click(),open:()=>$('#fProj').click(),save:saveProject,
     exp:()=>{ui.view='exp';render();},pres:downloadPlayer,renum:renumber,demo:loadDemo})[b.dataset.m]();});
   await stash();const list=await listRecent();const box=$('#mrec');if(!box)return;
@@ -1541,7 +1541,7 @@ $('#bRelayout').onclick=async()=>{if(!await ask('¿Reordenar el mapa automática
 $('#bBack').onclick=()=>{if(ui.history.length){ui.playCur=ui.history.pop();renderPlay();}};
 document.querySelectorAll('#pview button').forEach(b=>b.onclick=()=>{ui.fxView=b.dataset.fv;renderPlay();});
 $('#bFull').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#playv').requestFullscreen();}catch(e){toast('Pantalla completa no disponible aquí');}};
-$('#bPlayer').onclick=downloadPlayer;
+
 $('#bHome').onclick=()=>{ui.playCur=S.startId;ui.history=[];renderPlay();};
 document.addEventListener('keydown',e=>{
   const ae=document.activeElement;const typing=/INPUT|SELECT|TEXTAREA/.test(ae?.tagName)&&!/^(range|checkbox|radio|button)$/.test(ae?.type||'');

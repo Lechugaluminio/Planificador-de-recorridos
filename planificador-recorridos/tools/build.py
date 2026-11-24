@@ -4,7 +4,7 @@
 Uso:  python tools/build.py
 Inserta en src/app.html:
   /*FXENGINE*/  <- src/fxengine.js   (motor de fuego y humo animado)
-  /*DEMO*/[]    <- src/demo.json     (fotos del ejemplo Monte Carmelo)
+  /*DEMO*/[]    <- src/demo.json     (fotos del ejemplo Fuego en cocina)
 """
 from pathlib import Path
 

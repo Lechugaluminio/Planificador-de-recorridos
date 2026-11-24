@@ -286,7 +286,7 @@ kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--panel2
       <div class="box">
         <h1>Arma el recorrido antes de abrir Fire Studio</h1>
         <p>Carga las fotos del edificio, pon flechas que apuntan a <b>otras fotos</b> (no a números) y prueba el recorrido aquí. Cada foto recibe un número de diapositiva que <b>nunca cambia</b>: al final te entrego las fotos numeradas y la hoja exacta de enlaces para Fire Studio.</p>
-        <div class="btns"><button class="pri" id="bAdd2">Cargar fotos del edificio</button><button id="bDemo">Ver ejemplo (Monte Carmelo)</button><button id="bOpen2">Abrir proyecto (.json o .zip)</button></div>
+        <div class="btns"><button class="pri" id="bAdd2">Cargar fotos del edificio</button><button id="bDemo">Ver ejemplo (Fuego en cocina)</button><button id="bOpen2">Abrir proyecto (.json o .zip)</button></div>
         <p class="hint" style="margin-top:16px">Las fotos no salen de tu computador. También puedes arrastrarlas a esta ventana.</p>
         <div id="emptyRecent"></div>
       </div>
@@ -387,7 +387,7 @@ async function renderMenu(){
   const m=$('#menu');
   const it=(id,ic,t,k='')=>`<button class="mi" data-m="${id}"><span class="ic">${ic}</span>${t}${k?`<kbd>${k}</kbd>`:''}</button>`;
   m.innerHTML=it('new','＋','Nuevo recorrido')+it('add','🖼','Importar fotos…')+it('open','📂','Abrir proyecto (.json o .zip)…')+it('save','💾','Guardar proyecto','Ctrl+S')+'<hr>'+
-    it('exp','⇪','Exportar para Fire Studio…'+(S.applied&&changes().length?` <span class="badge" title="cambios pendientes para Fire Studio">${changes().length}</span>`:''))+it('renum','#','Renumerar por recorrido…')+'<hr>'+it('demo','✦','Ver ejemplo (Monte Carmelo)')+'<hr><h5>Recientes en este navegador</h5><div id="mrec"><div class="hint" style="padding:6px 10px">Cargando…</div></div>';
+    it('exp','⇪','Exportar para Fire Studio…'+(S.applied&&changes().length?` <span class="badge" title="cambios pendientes para Fire Studio">${changes().length}</span>`:''))+it('renum','#','Renumerar por recorrido…')+'<hr>'+it('demo','✦','Ver ejemplo (Fuego en cocina)')+'<hr><h5>Recientes en este navegador</h5><div id="mrec"><div class="hint" style="padding:6px 10px">Cargando…</div></div>';
   m.querySelectorAll('.mi').forEach(b=>b.onclick=()=>{closeMenu();({new:newRecorrido,add:()=>$('#fFiles').click(),open:()=>$('#fProj').click(),save:saveProject,
     exp:()=>{ui.view='exp';render();},pres:downloadPlayer,renum:renumber,demo:loadDemo})[b.dataset.m]();});
   await stash();const list=await listRecent();const box=$('#mrec');if(!box)return;
@@ -1248,25 +1248,18 @@ async function openZip(f){
   }catch(e){toast('No pude abrir ese zip: '+e.message);}
 }
 async function loadDemo(){
-  await stash();S=newProject();S.name='Ejemplo · Monte Carmelo';
-  const names={'DSC08389':'Esquina · calle','DSC08409':'Patio · entrada','DSC08410':'Patio · frente iglesia','DSC08411':'Patio · ala lateral','DSC08414':'Torre · fachada','DSC08415':'Hall · escalera','DSC08416':'Nave iglesia','DSC08437':'Escalera · descanso','DSC08438':'Escalera · puerta salón','DSC08445':'Salón vitrales','DSC08447':'Escalera a vitrales'};
+  // ejemplo: las 10 primeras fotos del escenario «Fuego en cocina» (Monte Carmelo) con sus flechas reales
+  await stash();S=newProject();S.name='Ejemplo · Fuego en cocina';
   const ids={};
-  for(const d of DEMO){const k=d.file.replace(/\.[^.]+$/,'');const id=uid();ids[k]=id;S.nodes.push({id,num:S.nextNum++,name:names[k]||k,file:d.file,w:d.w,h:d.h,vacant:false,final:false});IM[id]={src:d.src,thumb:d.src,file:null,hi:true};}
-  const L=(a,b,type,x,y,back=true)=>{if(!ids[a]||!ids[b])return;S.arrows.push({id:uid(),from:ids[a],to:ids[b],type,x,y});if(back)S.arrows.push({id:uid(),from:ids[b],to:ids[a],type:'down',x:.5,y:.86});};
-  L('DSC08389','DSC08409','ul',.2,.62);
-  L('DSC08409','DSC08410','up',.5,.62);
-  L('DSC08410','DSC08411','right',.86,.6);
-  L('DSC08410','DSC08416','in',.33,.66);
-  L('DSC08411','DSC08414','ul',.12,.35);
-  L('DSC08411','DSC08415','in',.62,.6);
-  L('DSC08415','DSC08437','up',.47,.48);
-  L('DSC08437','DSC08438','ur',.7,.45);
-  L('DSC08438','DSC08445','in',.45,.52);
-  S.startId=ids['DSC08389'];const f=S.nodes.find(n=>n.id===ids['DSC08445']);if(f)f.final=true;
-  const FXD=(k,type,scale,x,y,note='')=>{if(ids[k])S.effects.push({id:uid(),on:ids[k],type,scale,x,y,note});};
-  FXD('DSC08445','fire',1.8,.42,.62,'Foco: aparece con tecla 1');FXD('DSC08445','smoke',2.2,.5,.18);
-  FXD('DSC08410','smoke',1.3,.5,.22,'Humo saliendo por la cumbrera');FXD('DSC08438','smoke',1.2,.47,.4,'Humo por la puerta del salón');FXD('DSC08415','smoke',.8,.52,.2);
-  resetUI();ui.cur=S.startId;persist();render();toast('Ejemplo cargado: las flechas son inventadas, solo para probar');
+  for(const d of DEMO){const id=uid();ids[d.file]=id;
+    const n={id,num:S.nextNum++,name:d.name||d.file.replace(/\.[^.]+$/,''),file:d.file,w:d.w,h:d.h,vacant:false,final:!!d.final};
+    for(const k of ['amb','plane','mask'])if(d[k]!=null)n[k]=d[k];
+    S.nodes.push(n);IM[id]={src:d.src,thumb:d.src,file:null,hi:true};if(d.start)S.startId=id;}
+  for(const d of DEMO){
+    for(const a of d.arrows||[])if(ids[a.to])S.arrows.push({id:uid(),from:ids[d.file],to:ids[a.to],type:a.type,x:a.x,y:a.y,scale:a.scale||1});
+    for(const f of d.fx||[])S.effects.push({id:uid(),on:ids[d.file],type:f.type,x:f.x,y:f.y,scale:f.scale||1,note:f.note||''});}
+  if(!S.startId)S.startId=S.nodes[0]?.id;
+  resetUI();ui.cur=S.startId;persist();render();toast('Ejemplo cargado: primeras 10 fotos de «Fuego en cocina»');
 }
 
 /* ---------- events ---------- */

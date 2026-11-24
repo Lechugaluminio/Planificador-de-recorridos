@@ -74,6 +74,7 @@ main{overflow:hidden;position:relative}
 .al.sel{border-color:var(--fire)}
 .al svg{width:28px;height:28px}
 .al small{color:var(--mute);display:block;font-size:11px}
+.flag{width:32px;height:32px;padding:0;font-size:16px;line-height:1;opacity:.45;flex:none}.flag:hover{opacity:.85}.flag.on{opacity:1;color:var(--fire2);border-color:var(--fire2)}
 .envpick{max-height:300px;overflow:auto;margin-top:10px;display:grid;gap:4px}.envpick label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.envpick img{width:54px;height:34px;object-fit:cover;border-radius:3px}
 .al .tn{position:relative;width:72px;height:46px;border-radius:5px;overflow:hidden;background:#000;border:1px solid var(--line,#333);padding:0;cursor:pointer;flex:none}
 .al .tn img{width:100%;height:100%;object-fit:cover;display:block}
@@ -260,7 +261,6 @@ kbd{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--panel2
     <section class="view on" id="editv">
       <aside id="side">
         <div class="tools"><button class="pri" id="bAdd">+ Fotos</button><button id="bChain" title="Crear flechas Adelante/Volver entre fotos consecutivas">⛓ Encadenar</button></div>
-        <div class="tools" style="padding-top:0;border-top:0"><button id="bStart" title="Marcar como punto de partida">Marcar como inicio</button></div>
         <div id="slist"></div>
       </aside>
       <div id="stagewrap">
@@ -892,9 +892,8 @@ function renderPanel(n,iss){
   const ins=S.arrows.filter(a=>a.to===n.id);
   const sel=S.arrows.find(a=>a.id===ui.selArrow&&a.from===n.id);
   let h=`<h3>Diapositiva</h3>
-  <div class="row"><div class="mono" style="font-size:28px;color:var(--fire2);line-height:1">${pad(n.num)}</div><div class="hint">número fijo en Fire Studio</div></div>
-  ${n.vacant?'':`<div class="row"><input type="text" id="nname" value="${esc(n.name)}" placeholder="Nombre (ej. Hall acceso)"></div>
-  <div class="row"><label class="chk"><input type="checkbox" id="nstart" ${S.startId===n.id?'checked':''}>Punto de partida</label><label class="chk"><input type="checkbox" id="nfinal" ${n.final?'checked':''}>Foco / final</label></div>`}
+  <div class="row"><div class="mono" style="font-size:28px;color:var(--fire2);line-height:1">${pad(n.num)}</div><div class="hint">número fijo en Fire Studio</div>${n.vacant?'':`<div style="flex:1"></div><button class="flag ${S.startId===n.id?'on':''}" id="nstart" title="${S.startId===n.id?'Esta foto es el punto de partida':'Marcar como punto de partida'}">⚑</button><button class="flag ${n.final?'on':''}" id="nfinal" title="${n.final?'Esta foto es el foco / final (clic para quitar)':'Marcar como foco / final'}">◎</button>`}</div>
+  ${n.vacant?'':`<div class="row"><input type="text" id="nname" value="${esc(n.name)}" placeholder="Nombre (ej. Hall acceso)"></div>`}
   ${n.vacant?"":`<div class="row"><button id="nchain" title="Flecha Adelante a la siguiente foto y Volver desde ella">⛓ Encadenar con la siguiente</button></div>`}<div class="row"><button id="nrep">Reemplazar foto</button>${n.vacant?'':'<button class="danger" id="ndel">Quitar foto</button>'}</div>
   <div class="hint">Archivo: ${esc(n.file||'—')}</div>`;
   if(!n.vacant){const ev=envOf(n);
@@ -921,8 +920,8 @@ function renderPanel(n,iss){
   h+=`<h3>Llegan aquí desde (${ins.length})</h3>`+(ins.map(a=>{const f=node(a.from);return `<div class="al" data-go="${f.id}">${arrowSVG(a.type)}<div><span class="mono" style="color:var(--fire2)">${pad(f.num)}</span> ${esc(f.name)}<small>${TYPES[a.type].es}</small></div>${tnHTML(f,'Ir a esta foto')}</div>`;}).join('')||'<div class="hint">Ninguna foto lleva hasta aquí.</div>');
   const p=$('#panel');p.innerHTML=h;
   const nn=p.querySelector('#nname');if(nn){nn.onchange=e=>mutate(()=>n.name=e.target.value.trim()||n.name);nn.onkeydown=e=>{if(e.key==='Enter')e.target.blur();};}
-  p.querySelector('#nstart')?.addEventListener('change',e=>mutate(()=>S.startId=e.target.checked?n.id:(S.startId===n.id?null:S.startId)));
-  p.querySelector('#nfinal')?.addEventListener('change',e=>mutate(()=>n.final=e.target.checked));
+  p.querySelector('#nstart')?.addEventListener('click',()=>mutate(()=>S.startId=S.startId===n.id?null:n.id));
+  p.querySelector('#nfinal')?.addEventListener('click',()=>mutate(()=>n.final=!n.final));
   p.querySelector('#nchain')?.addEventListener('click',()=>{const L=byNum().filter(m=>!m.vacant);const i=L.findIndex(m=>m.id===n.id);if(i<0||i===L.length-1){toast('Es la última foto: no hay siguiente');return;}const c=chain(L.slice(i,i+2));toast(c?`Encadenada con ${pad(L[i+1].num)} · ${L[i+1].name}`:'Ya estaban conectadas');});
   p.querySelector('#nrep').onclick=()=>{ui.replaceId=n.id;$('#fReplace').click();};
   p.querySelector('#ndel')?.addEventListener('click',async()=>{
@@ -1489,7 +1488,7 @@ $('#bChain').onclick=async()=>{
   const made=chain(L.slice(a,b+1));
   toast(made?`${made} flechas creadas entre ${pad(L[a].num)} y ${pad(L[b].num)}`:'Esas fotos ya estaban conectadas');
 };
-$('#bStart').onclick=()=>{if(ui.cur&&!node(ui.cur).vacant)mutate(()=>S.startId=ui.cur);};
+$('#bStart')&&($('#bStart').onclick=()=>{if(ui.cur&&!node(ui.cur).vacant)mutate(()=>S.startId=ui.cur);});
 $('#bUndo').onclick=undo;$('#bRedo').onclick=redo;
 $('#zIn').onclick=()=>setMapZoom((ui.cam?.z||1)*1.25);
 $('#zOut').onclick=()=>setMapZoom((ui.cam?.z||1)/1.25);

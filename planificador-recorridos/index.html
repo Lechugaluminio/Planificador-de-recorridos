@@ -74,6 +74,10 @@ main{overflow:hidden;position:relative}
 .al.sel{border-color:var(--fire)}
 .al svg{width:28px;height:28px}
 .al small{color:var(--mute);display:block;font-size:11px}
+.al .tn{position:relative;width:72px;height:46px;border-radius:5px;overflow:hidden;background:#000;border:1px solid var(--line,#333);padding:0;cursor:pointer;flex:none}
+.al .tn img{width:100%;height:100%;object-fit:cover;display:block}
+.al .tn b{position:absolute;left:3px;bottom:3px;font:600 11px/1 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.72);padding:2px 4px;border-radius:3px}
+.al .tn:hover{outline:2px solid var(--fire2)}
 .hint{color:var(--mute);font-size:12.5px}
 .warnbox{border-left:3px solid var(--warn);background:rgba(242,201,76,.08);padding:7px 9px;border-radius:4px;font-size:12.5px;margin:5px 0}
 .warnbox.bad{border-color:var(--bad);background:rgba(255,92,92,.08)}
@@ -560,6 +564,7 @@ async function replacePhoto(id,f){
   mutate(()=>{const n=node(id);n.file=f.name;n.w=img.naturalWidth;n.h=img.naturalHeight;if(n.vacant){n.vacant=false;}IM[id]={src,thumb,file:f,hi:true};});storeHi(id,f);
   toast(`Diapositiva ${node(id).num}: foto reemplazada (mismo número, mismas flechas de llegada)`);
 }
+function tnHTML(n,title){return `<button class="tn" data-go="${n.id}" title="${title}">${n.vacant?'':`<img src="${IM[n.id]?.thumb||imgSrc(n.id)}" alt="">`}<b>${pad(n.num)}</b></button>`;}
 function imgSrc(id){return IM[id]?.src||IM[id]?.thumb||'';}
 /* --- fotos en buena resolución guardadas en el navegador (para no depender de los originales) --- */
 const STORE_W=3200;
@@ -800,8 +805,8 @@ function renderPanel(n,iss){
     <div class="row"><span class="hint">${FX[sf.type].es} · librería <b>${FX[sf.type].lib}</b></span><div style="flex:1"></div><button class="danger" id="fdel">Borrar</button></div>
     <div class="hint">Arrastra el ícono a otra foto de la lista para copiarlo ahí.</div>`;}
   if(!n.vacant&&fxs.length)h+=`<h3>Efectos (${fxs.length})</h3>`+fxs.map(f=>`<div class="al ${f.id===ui.selFx?'sel':''}" data-f="${f.id}"><span class="chipc ${fam(f.type)}" style="width:28px;height:28px">${fxSVG(f.type)}</span><div>${esc(FX[f.type].es)}<small>${FX[f.type].lib} · ${Math.round((f.scale||1)*100)}%${f.note?' · '+esc(f.note):''}</small></div><span></span></div>`).join('');
-  h+=`<h3>Salidas (${outs.length})</h3>`+(outs.map(a=>{const t=node(a.to);return `<div class="al ${a.id===ui.selArrow?'sel':''}" data-a="${a.id}">${arrowSVG(a.type)}<div>→ <span class="mono" style="color:var(--fire2)">${t?pad(t.num):'???'}</span> ${esc(t?(t.vacant?'(vacante)':t.name):'')}<small>${TYPES[a.type].es} · Nav Icons › ${TYPES[a.type].fs}</small></div><button class="ghost" data-go="${a.to}" title="Ir al destino">↗</button></div>`;}).join('')||'<div class="hint">Haz clic en la foto donde quieras una flecha.</div>');
-  h+=`<h3>Llegan aquí desde (${ins.length})</h3>`+(ins.map(a=>{const f=node(a.from);return `<div class="al" data-go="${f.id}">${arrowSVG(a.type)}<div><span class="mono" style="color:var(--fire2)">${pad(f.num)}</span> ${esc(f.name)}<small>${TYPES[a.type].es}</small></div><span></span></div>`;}).join('')||'<div class="hint">Ninguna foto lleva hasta aquí.</div>');
+  h+=`<h3>Salidas (${outs.length})</h3>`+(outs.map(a=>{const t=node(a.to);return `<div class="al ${a.id===ui.selArrow?'sel':''}" data-a="${a.id}">${arrowSVG(a.type)}<div>→ <span class="mono" style="color:var(--fire2)">${t?pad(t.num):'???'}</span> ${esc(t?(t.vacant?'(vacante)':t.name):'')}<small>${TYPES[a.type].es} · Nav Icons › ${TYPES[a.type].fs}</small></div>${t?tnHTML(t,'Ir a la foto de destino'):'<span></span>'}</div>`;}).join('')||'<div class="hint">Haz clic en la foto donde quieras una flecha.</div>');
+  h+=`<h3>Llegan aquí desde (${ins.length})</h3>`+(ins.map(a=>{const f=node(a.from);return `<div class="al" data-go="${f.id}">${arrowSVG(a.type)}<div><span class="mono" style="color:var(--fire2)">${pad(f.num)}</span> ${esc(f.name)}<small>${TYPES[a.type].es}</small></div>${tnHTML(f,'Ir a esta foto')}</div>`;}).join('')||'<div class="hint">Ninguna foto lleva hasta aquí.</div>');
   const p=$('#panel');p.innerHTML=h;
   const nn=p.querySelector('#nname');if(nn){nn.onchange=e=>mutate(()=>n.name=e.target.value.trim()||n.name);nn.onkeydown=e=>{if(e.key==='Enter')e.target.blur();};}
   p.querySelector('#nstart')?.addEventListener('change',e=>mutate(()=>S.startId=e.target.checked?n.id:(S.startId===n.id?null:S.startId)));

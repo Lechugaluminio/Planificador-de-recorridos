@@ -861,9 +861,19 @@ async function vacateMany(ids){
 function renderMapTools(){
   const t=$('#maptools');const sel=[...mapSelSet()].filter(id=>node(id)&&!node(id).vacant);const e=ui.mapEdge;
   const mode=ui.linkBoth!==false;
-  if(e&&node(e.a)&&node(e.b)){const A=node(e.a),B=node(e.b),ab=hasArrow(e.a,e.b),ba=hasArrow(e.b,e.a);
-    t.innerHTML=`<b>Conexión ${pad(A.num)} ${ab&&ba?'↔':'→'} ${pad(B.num)}</b><span class="seg"><button data-e="ab" class="${ab&&!ba?'on':''}" title="Solo flecha de avance de ${pad(A.num)} a ${pad(B.num)}">${pad(A.num)} → ${pad(B.num)}</button><button data-e="ba" class="${ba&&!ab?'on':''}" title="Invertir: solo de ${pad(B.num)} a ${pad(A.num)}">${pad(A.num)} ← ${pad(B.num)}</button><button data-e="both" class="${ab&&ba?'on':''}" title="Avance y retorno">↔ Ida y vuelta</button></span><button class="danger" data-e="del">Eliminar conexión</button><span class="hint">Supr borra · Esc deselecciona</span>`;
-    t.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>setEdge(e.a,e.b,b.dataset.e));return;}
+  if(e&&node(e.a)&&node(e.b)){
+    let a=e.a,b=e.b;if(!hasArrow(a,b)&&hasArrow(b,a))[a,b]=[b,a];
+    const A=node(a),B=node(b),both=hasArrow(a,b)&&hasArrow(b,a);
+    if(both){ // dirección principal = la flecha que no es de retorno (Atrás/volver)
+      const fab=S.arrows.find(x=>x.from===a&&x.to===b),fba=S.arrows.find(x=>x.from===b&&x.to===a);
+      if(fab.type==='down'&&fba.type!=='down')[a,b]=[b,a];}
+    const P=node(a),Q=node(b);
+    t.innerHTML=both
+      ?`<b>Conexión ${pad(P.num)} ↔ ${pad(Q.num)}</b><span class="hint">ida y vuelta</span><button class="pri" data-e="one" title="Deja solo la flecha de avance de ${pad(P.num)} a ${pad(Q.num)} y quita el retorno">→ Sentido único (${pad(P.num)} → ${pad(Q.num)})</button><button data-e="oneR" title="Deja solo la flecha de ${pad(Q.num)} a ${pad(P.num)}">← Al revés (${pad(Q.num)} → ${pad(P.num)})</button><button class="danger" data-e="del">Eliminar conexión</button><span class="hint">Supr borra · Esc deselecciona</span>`
+      :`<b>Conexión ${pad(P.num)} → ${pad(Q.num)}</b><span class="hint">sentido único</span><button class="pri" data-e="both" title="Agrega la flecha de retorno de ${pad(Q.num)} a ${pad(P.num)}">↔ Hacer ida y vuelta</button><button data-e="flip" title="Cambia el sentido: de ${pad(Q.num)} a ${pad(P.num)}">⇄ Invertir sentido</button><button class="danger" data-e="del">Eliminar conexión</button><span class="hint">Supr borra · Esc deselecciona</span>`;
+    t.querySelectorAll('[data-e]').forEach(btn=>btn.onclick=()=>{const k=btn.dataset.e;
+      if(k==='one')setEdge(a,b,'ab');else if(k==='oneR'||k==='flip')setEdge(a,b,'ba');else setEdge(a,b,k);});
+    return;}
   if(sel.length){
     const L=sel.map(node).sort((x,y)=>x.num-y.num);
     t.innerHTML=`<b>${sel.length} foto${sel.length>1?'s':''} seleccionada${sel.length>1?'s':''}</b>${sel.length>1?`<button id="mcB" title="Flechas de avance y de retorno, en orden de número">⛓ Encadenar ↔</button><button id="mcF" title="Solo flechas de avance, en orden de número">⛓ Encadenar →</button>`:''}${sel.length>1?`<button id="mEsc" class="${sel.length>MAX_ESC?'':'pri'}" ${sel.length>MAX_ESC?'disabled':''} title="${sel.length>MAX_ESC?`Máximo ${MAX_ESC} fotos por escenario (la versión tablet de Fire Studio no carga más)`:'Nuevo proyecto solo con estas fotos y sus conexiones'}">🎬 Crear escenario <span style="opacity:.75">${sel.length}/${MAX_ESC}</span></button>`:''}${sel.length===1?'<button id="mEd">Editar</button>':''}<button class="danger" id="mDel">Quitar ${sel.length>1?'fotos':'foto'}</button><span class="hint">Shift+clic suma · Supr quita · Esc deselecciona</span>`;

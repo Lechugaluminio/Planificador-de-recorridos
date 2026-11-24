@@ -157,13 +157,15 @@ input[type=range]{accent-color:var(--fire);width:100%}
 #eview button{padding:6px 12px;font-size:13.5px}
 #eview button.on,#pview button.on{background:rgba(255,106,43,.18);color:var(--text);box-shadow:inset 0 0 0 1px var(--fire)}
 /* popover */
-#pop{position:absolute;z-index:20;width:360px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.6);padding:12px;display:none}
+#pop{position:absolute;z-index:20;width:520px;height:470px;min-width:320px;min-height:300px;resize:both;overflow:hidden;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.6);padding:12px;display:none}
+#pop .popgrip{position:absolute;right:3px;bottom:2px;font-size:11px;color:var(--mute);pointer-events:none}
 #pop h4{margin:0 0 8px;font-size:13px;font-weight:600}
 .types{display:grid;grid-template-columns:repeat(9,1fr);gap:4px;margin-bottom:10px}
 .types button{padding:3px;aspect-ratio:1;display:grid;place-items:center}
 .types button.on{border-color:var(--fire);background:rgba(255,106,43,.15)}
+#pop .types{grid-template-columns:repeat(9,minmax(0,52px));justify-content:start}
 .types svg{width:26px;height:26px}
-.dests{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:250px;overflow:auto;padding-right:2px}
+.dests{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));align-content:start;gap:6px;flex:1;min-height:0;overflow:auto;padding-right:2px}
 .dest{position:relative;border-radius:6px;overflow:hidden;cursor:pointer;border:2px solid transparent;background:#000}
 .dest:hover{border-color:var(--fire)}
 .dest img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
@@ -844,7 +846,9 @@ function bindFrame(n){
 function placePop(ev){
   const p=$('#pop'),host=$('#editv').getBoundingClientRect();
   let left=ev.clientX-host.left+14,top=ev.clientY-host.top-20;
-  p.style.display='block';
+  try{const z=JSON.parse(localStorage.getItem('fs-pop-size')||'null');if(z){p.style.width=Math.min(z.w,host.width-20)+'px';p.style.height=Math.min(z.h,host.height-20)+'px';}}catch(e){}
+  p.style.display='flex';
+  if(!p._ro&&window.ResizeObserver){let t;p._ro=new ResizeObserver(()=>{if(p.style.display!=='flex')return;clearTimeout(t);t=setTimeout(()=>{try{localStorage.setItem('fs-pop-size',JSON.stringify({w:p.offsetWidth,h:p.offsetHeight}));}catch(e){}},200);});p._ro.observe(p);}
   if(left+p.offsetWidth>host.width-10)left=ev.clientX-host.left-p.offsetWidth-14;
   if(top+p.offsetHeight>host.height-10)top=host.height-p.offsetHeight-10;
   p.style.left=Math.max(10,left)+'px';p.style.top=Math.max(10,top)+'px';
@@ -861,7 +865,7 @@ function drawPop(){
   <div class="types">${TYPE_ORDER.map(t=>`<button data-t="${t}" class="${t===P.type?'on':''}" title="${TYPES[t].es} (Nav Icons › ${TYPES[t].fs})">${arrowSVG(t)}</button>`).join('')}</div>
   <div class="row"><input type="text" id="popq" placeholder="Buscar destino por nombre o número…" value="${esc(P.q)}"></div>
   <div class="dests">${list.map(m=>`<div class="dest" data-id="${m.id}"><img src="${IM[m.id]?.thumb||''}"><span><b>${pad(m.num)}</b> ${esc(m.name)}</span></div>`).join('')||'<div class="hint">No hay otras fotos todavía.</div>'}</div>
-  <div class="row" style="justify-content:space-between;margin-top:10px"><label class="chk"><input type="checkbox" id="popback" ${P.back?'checked':''}>Crear flecha de regreso en el destino</label><button id="popx">Cancelar</button></div>`;
+  <div class="row" style="justify-content:space-between;margin-top:10px"><label class="chk"><input type="checkbox" id="popback" ${P.back?'checked':''}>Crear flecha de regreso en el destino</label><button id="popx">Cancelar</button></div><span class="popgrip" title="Arrastra la esquina para cambiar el tamaño">◢</span>`;
   p.querySelectorAll('.types button').forEach(b=>b.onclick=()=>{P.type=b.dataset.t;drawPop();});
   p.querySelector('#popq').oninput=e=>{P.q=e.target.value;const pos=e.target.selectionStart;drawPop();const i=$('#popq');i.focus();i.setSelectionRange(pos,pos);};
   p.querySelector('#popq').onkeydown=e=>{if(e.key==='Enter'&&list[0])createArrow(list[0].id);if(e.key==='Escape')hidePop();};

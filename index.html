@@ -896,8 +896,11 @@ function renderPanel(n,iss){
   let h=`<h3>Diapositiva</h3>
   <div class="row"><div class="mono" style="font-size:28px;color:var(--fire2);line-height:1">${pad(n.num)}</div><div class="hint">número fijo en Fire Studio</div>${n.vacant?'':`<div style="flex:1"></div><button class="flag ${S.startId===n.id?'on':''}" id="nstart" title="${S.startId===n.id?'Esta foto es el punto de partida':'Marcar como punto de partida'}">${ICO_START}</button><button class="flag ${n.final?'on':''}" id="nfinal" title="${n.final?'Esta foto es el foco / final (clic para quitar)':'Marcar como foco / final'}">${ICO_FOCO}</button>`}</div>
   ${n.vacant?'':`<div class="row"><input type="text" id="nname" value="${esc(n.name)}" placeholder="Nombre (ej. Hall acceso)"></div>`}
-  ${n.vacant?"":`<div class="row"><button id="nchain" title="Flecha Adelante a la siguiente foto y Volver desde ella">⛓ Encadenar con la siguiente</button></div>`}<div class="row"><button id="nrep">Reemplazar foto</button>${n.vacant?'':'<button class="danger" id="ndel">Quitar foto</button>'}</div>
+`;
+  const slideH=`${n.vacant?"":`<div class="row"><button id="nchain" title="Flecha Adelante a la siguiente foto y Volver desde ella">⛓ Encadenar con la siguiente</button></div>`}<div class="row"><button id="nrep">Reemplazar foto</button>${n.vacant?'':'<button class="danger" id="ndel">Quitar foto</button>'}</div>
   <div class="hint">Archivo: ${esc(n.file||'—')}</div>`;
+  const selAny=!!(sel||S.effects.some(f=>f.id===ui.selFx&&f.on===n.id));
+  if(!selAny)h+=slideH;
   let envH='';if(!n.vacant){const ev=envOf(n);
     envH=`<h3>Ambiente interior</h3>
     <div class="row"><span class="hint" style="width:92px">Humo ambiente</span><input type="range" id="eamb" min="0" max="1" step="0.05" value="${ev.amb}"><span class="mono hint" id="eambv" style="width:40px;text-align:right">${Math.round(ev.amb*100)}%</span></div>
@@ -922,6 +925,8 @@ function renderPanel(n,iss){
   linksH+=`<h3>Llegan aquí desde (${ins.length})</h3>`+(ins.map(a=>{const f=node(a.from);return `<div class="al" data-go="${f.id}">${arrowSVG(a.type)}<div><span class="mono" style="color:var(--fire2)">${pad(f.num)}</span> ${esc(f.name)}<small>${TYPES[a.type].es}</small></div>${tnHTML(f,'Ir a esta foto')}</div>`;}).join('')||'<div class="hint">Ninguna foto lleva hasta aquí.</div>');
   // con una flecha seleccionada, sus destinos van justo debajo; el ambiente (se usa poco) va al final
   h+=sel?linksH+fxListH+envH:fxListH+linksH+envH;
+  // con una flecha o efecto seleccionado, las acciones de la foto entera bajan al final (evita confundir Quitar foto con Borrar)
+  if(selAny)h+=`<h3>Foto completa</h3>`+slideH;
   const p=$('#panel');p.innerHTML=h;
   const nn=p.querySelector('#nname');if(nn){nn.onchange=e=>mutate(()=>n.name=e.target.value.trim()||n.name);nn.onkeydown=e=>{if(e.key==='Enter')e.target.blur();};}
   p.querySelector('#nstart')?.addEventListener('click',()=>mutate(()=>S.startId=S.startId===n.id?null:n.id));

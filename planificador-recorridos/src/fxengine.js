@@ -1,5 +1,8 @@
 /* Motor de efectos estilizados (fuego, humo, explosión, hollín, mat. peligrosos).
-   FXR.attach(canvas, [{type,x,y,scale}]) dibuja en bucle mientras el canvas siga en la página. */
+   FXR.attach(canvas, [{type,x,y,scale}], {amb,plane,mask}) dibuja en bucle mientras el canvas siga en la página.
+   amb   = humo ambiente 0..1 (capa gris difusa sobre toda la foto)
+   plane = altura del plano neutro 0..1 desde arriba (bajo él el humo es mucho más tenue)
+   mask  = true: se ve desde dentro de la máscara del equipo autónomo */
 (function(){
   var R={};
   function rnd(a,b){return a+Math.random()*(b-a);}
@@ -30,7 +33,8 @@
         soot:soft(8,6,4,.55),glow:null,
         dark:[cloud(20,20,22),cloud(28,27,26),cloud(14,14,15),cloud(36,34,32)],
         grey:[cloud(70,68,66),cloud(90,88,85),cloud(58,57,56)],
-        haz:[cloud(170,196,60),cloud(150,180,50),cloud(190,205,90)]};
+        haz:[cloud(170,196,60),cloud(150,180,50),cloud(190,205,90)],
+        amb:[cloud(96,94,91),cloud(110,108,104),cloud(84,83,81),cloud(122,120,116)]};
     return SP;
   }
   function makeEmitter(f){
@@ -56,9 +60,94 @@
         s:rnd(30,52)*u,g:(haz?rnd(34,56):rnd(38,70))*u,img:set[(Math.random()*set.length)|0],r:rnd(0,6.283),vr:rnd(-.25,.25),pk:haz?.32:(kind==='fsmoke'?.28:(kind==='grey'?.3:.4))});
     }
   }
-  R.attach=function(cv,effects){
-    var ctx=cv.getContext('2d'),sp=sprites(),W=0,H=0,dpr=1;
-    function size(){var r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.max(1,Math.round(W*dpr));cv.height=Math.max(1,Math.round(H*dpr));}
+  /* ---- máscara del equipo autónomo (estática, se dibuja una vez por tamaño) ---- */
+  function lensPath(x,W,H){
+    var l=W*.045,r=W*.955,t=H*.085,b=H*.955,cx=W/2;
+    x.beginPath();
+    x.moveTo(l+W*.06,t+H*.13);
+    x.bezierCurveTo(l+W*.12,t-H*.01,cx-W*.2,t-H*.035,cx,t-H*.03);
+    x.bezierCurveTo(cx+W*.2,t-H*.035,r-W*.12,t-H*.01,r-W*.06,t+H*.13);
+    x.bezierCurveTo(r+W*.01,t+H*.3,r+W*.005,b-H*.25,r-W*.035,b-H*.04);
+    x.bezierCurveTo(r-W*.12,b+H*.02,cx+W*.25,b+H*.01,cx,b);
+    x.bezierCurveTo(cx-W*.25,b+H*.01,l+W*.12,b+H*.02,l+W*.035,b-H*.04);
+    x.bezierCurveTo(l-W*.005,b-H*.25,l-W*.01,t+H*.3,l+W*.06,t+H*.13);
+    x.closePath();
+  }
+  function maskLayer(W,H,dpr){
+    var c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*dpr));c.height=Math.max(1,Math.round(H*dpr));
+    var x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);
+    var m=Math.min(W,H);
+    // goma alrededor del visor
+    var g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#141110');g.addColorStop(1,'#0b0908');
+    x.fillStyle=g;x.fillRect(0,0,W,H);
+    // abrir el visor con borde difuso (sombra desplazada = funciona en todos los navegadores)
+    x.save();x.globalCompositeOperation='destination-out';
+    x.shadowColor='#000';x.shadowBlur=m*.02*dpr;x.shadowOffsetX=W*4*dpr;
+    x.translate(-W*4,0);lensPath(x,W,H);x.fill();x.restore();
+    // reflejo del borde interior del visor
+    x.save();lensPath(x,W,H);x.clip();
+    x.strokeStyle='rgba(210,200,190,.10)';x.lineWidth=m*.012;lensPath(x,W,H);x.stroke();
+    // oscurecido hacia los bordes del lente + leve tinte cálido
+    var v=x.createRadialGradient(W/2,H*.48,m*.25,W/2,H*.5,Math.max(W,H)*.62);
+    v.addColorStop(0,'rgba(40,28,18,0)');v.addColorStop(.7,'rgba(30,22,16,.18)');v.addColorStop(1,'rgba(12,9,7,.62)');
+    x.fillStyle=v;x.fillRect(0,0,W,H);
+    // brillo del policarbonato arriba a la izquierda
+    var rf=x.createLinearGradient(W*.1,H*.05,W*.42,H*.34);
+    rf.addColorStop(0,'rgba(255,255,255,0)');rf.addColorStop(.5,'rgba(255,255,255,.055)');rf.addColorStop(1,'rgba(255,255,255,0)');
+    x.fillStyle=rf;x.beginPath();x.ellipse(W*.27,H*.17,W*.2,H*.06,-.32,0,6.283);x.fill();
+    x.restore();
+    // copa nasal / regulador abajo al centro
+    var rx=W*.17,ry=H*.23,cx=W*.5,cy=H*1.03;
+    var rg=x.createRadialGradient(cx,cy-ry*.75,ry*.1,cx,cy,ry*1.1);
+    rg.addColorStop(0,'#3a2e28');rg.addColorStop(.55,'#211915');rg.addColorStop(1,'#0e0b09');
+    x.save();x.shadowColor='rgba(0,0,0,.7)';x.shadowBlur=m*.02*dpr;
+    x.fillStyle=rg;x.beginPath();x.ellipse(cx,cy,rx,ry,0,0,6.283);x.fill();x.restore();
+    x.strokeStyle='rgba(190,170,150,.10)';x.lineWidth=m*.006;x.beginPath();x.ellipse(cx,cy,rx*.97,ry*.97,0,3.5,5.93);x.stroke();
+    // módulo HUD a la derecha del regulador con luces verdes
+    var hx=W*.635,hy=H*.885,hw=W*.085,hh=H*.06;
+    x.save();x.translate(hx,hy);x.rotate(-.12);
+    var hg=x.createLinearGradient(0,-hh/2,0,hh/2);hg.addColorStop(0,'#2b2724');hg.addColorStop(1,'#121010');
+    x.fillStyle=hg;x.beginPath();x.moveTo(-hw/2,-hh/2);x.lineTo(hw/2,-hh/2);x.lineTo(hw/2*.92,hh/2);x.lineTo(-hw/2*.92,hh/2);x.closePath();x.fill();
+    for(var i=0;i<3;i++){var lx=-hw*.28+i*hw*.13,ly=-hh*.08,lr=m*.007;
+      var lg=x.createRadialGradient(lx,ly,0,lx,ly,lr*3.2);lg.addColorStop(0,'rgba(120,255,120,.95)');lg.addColorStop(.35,'rgba(40,220,60,.55)');lg.addColorStop(1,'rgba(40,220,60,0)');
+      x.fillStyle=lg;x.beginPath();x.arc(lx,ly,lr*3.2,0,6.283);x.fill();}
+    x.restore();
+    return c;
+  }
+  R.attach=function(cv,effects,opts){
+    opts=opts||{};
+    var ctx=cv.getContext('2d'),sp=sprites(),W=0,H=0,dpr=1,MK=null;
+    var amb=Math.max(0,Math.min(1,+opts.amb||0)),plane=opts.plane==null?.55:Math.max(.1,Math.min(.95,+opts.plane)),mask=!!opts.mask;
+    var puffs=[];
+    function size(){var r=cv.getBoundingClientRect();dpr=Math.min(2,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.max(1,Math.round(W*dpr));cv.height=Math.max(1,Math.round(H*dpr));MK=null;}
+    function newPuff(any){var py=Math.random()<.45?plane*(.75+Math.random()*.3):Math.random()*plane*.9;
+      return {x:any?Math.random()*1.3-.15:-.3,y:py,s:.4+Math.random()*.4,v:.004+Math.random()*.012,r:Math.random()*6.283,vr:(Math.random()-.5)*.05,img:sp.amb[(Math.random()*sp.amb.length)|0],a:.5+Math.random()*.5};}
+    if(amb>0)for(var q=0;q<26;q++)puffs.push(newPuff(true));
+    function drawAmb(dt,t){
+      var py=plane*H;
+      // capa base: densa arriba, tenue bajo el plano neutro
+      var g=ctx.createLinearGradient(0,0,0,H),e=Math.min(.99,plane+.16);
+      g.addColorStop(0,'rgba(62,60,58,'+(amb*.95)+')');
+      g.addColorStop(Math.max(0,plane-.12),'rgba(92,90,87,'+(amb*.8)+')');
+      g.addColorStop(plane,'rgba(104,102,99,'+(amb*.58)+')');
+      g.addColorStop(e,'rgba(110,108,105,'+(amb*.2)+')');
+      g.addColorStop(1,'rgba(110,108,105,'+(amb*.1)+')');
+      ctx.globalAlpha=1;ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      // bocanadas lentas que hacen ondular la capa
+      for(var i=0;i<puffs.length;i++){var p=puffs[i];p.x+=p.v*dt;p.r+=p.vr*dt;
+        if(p.x>1.25)puffs[i]=p=newPuff(false);
+        var s=p.s*W,wy=p.y*H+Math.sin(t*.25+p.r)*H*.012;
+        ctx.globalAlpha=Math.min(1,amb*.7*p.a);ctx.save();ctx.translate(p.x*W,wy);ctx.rotate(p.r);ctx.drawImage(p.img,-s/2,-s*.3,s,s*.6);ctx.restore();}
+      ctx.globalAlpha=1;
+    }
+    function drawMask(t){
+      if(!MK)MK=maskLayer(W,H,dpr);
+      ctx.setTransform(1,0,0,1,0,0);ctx.globalAlpha=1;ctx.drawImage(MK,0,0);ctx.setTransform(dpr,0,0,dpr,0,0);
+      // vaho de la respiración en el borde inferior del visor
+      var b=Math.max(0,Math.sin(t*1.5))*.10;
+      if(b>.003){var m=Math.min(W,H),fg=ctx.createRadialGradient(W/2,H*.95,m*.05,W/2,H*.95,W*.42);
+        fg.addColorStop(0,'rgba(225,225,222,'+b+')');fg.addColorStop(1,'rgba(225,225,222,0)');ctx.fillStyle=fg;ctx.fillRect(0,0,W,H);}
+    }
     size();
     var em=(effects||[]).map(makeEmitter),last=performance.now(),alive=true,warm=true;
     function emit(e,key,rate,dt){e.acc[key]+=dt*rate;var n=e.acc[key]|0;e.acc[key]-=n;return n;}
@@ -108,10 +197,12 @@
       ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
       ctx.globalCompositeOperation='source-over';
       em.forEach(function(e){if(e.soot)drawSoot(e,U);});
+      if(amb>0)drawAmb(dt,t);
       em.forEach(drawSmoke);
       ctx.globalCompositeOperation='lighter';
       em.forEach(function(e){if(e.f.type==='fire'||e.f.type==='exp')drawFire(e,t,U);});
       ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+      if(mask)drawMask(t);
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

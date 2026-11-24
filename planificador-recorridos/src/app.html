@@ -74,6 +74,7 @@ main{overflow:hidden;position:relative}
 .al.sel{border-color:var(--fire)}
 .al svg{width:28px;height:28px}
 .al small{color:var(--mute);display:block;font-size:11px}
+.envpick{max-height:300px;overflow:auto;margin-top:10px;display:grid;gap:4px}.envpick label{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.envpick img{width:54px;height:34px;object-fit:cover;border-radius:3px}
 .al .tn{position:relative;width:72px;height:46px;border-radius:5px;overflow:hidden;background:#000;border:1px solid var(--line,#333);padding:0;cursor:pointer;flex:none}
 .al .tn img{width:100%;height:100%;object-fit:cover;display:block}
 .al .tn b{position:absolute;left:3px;bottom:3px;font:600 11px/1 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.72);padding:2px 4px;border-radius:3px}
@@ -443,6 +444,8 @@ async function replacePhoto(id,f){
   mutate(()=>{const n=node(id);n.file=f.name;n.w=img.naturalWidth;n.h=img.naturalHeight;if(n.vacant){n.vacant=false;}IM[id]={src,thumb,file:f,hi:true};});storeHi(id,f);
   toast(`Diapositiva ${node(id).num}: foto reemplazada (mismo número, mismas flechas de llegada)`);
 }
+function envOf(n){return {amb:n.amb||0,plane:n.plane==null?.55:n.plane,mask:!!n.mask};}
+function hasEnv(n){return (n.amb||0)>0||!!n.mask;}
 function tnHTML(n,title){return `<button class="tn" data-go="${n.id}" title="${title}">${n.vacant?'':`<img src="${IM[n.id]?.thumb||imgSrc(n.id)}" alt="">`}<b>${pad(n.num)}</b></button>`;}
 function imgSrc(id){return IM[id]?.src||IM[id]?.thumb||'';}
 /* --- fotos en buena resolución guardadas en el navegador (para no depender de los originales) --- */
@@ -532,7 +535,7 @@ function renderEdit(){
     const real=ui.fxView==='real';
     st.innerHTML=`<div class="frame edit ${real?'real':''}" id="frame" style="width:${w}px;height:${h}px"><img class="bg" src="${imgSrc(n.id)}" draggable="false">${real?'<canvas class="fxcv"></canvas>':''}${S.effects.filter(f=>f.on===n.id).map(f=>fxEl(f,true)).join('')}${S.arrows.filter(a=>a.from===n.id).map(a=>arrowEl(a,true)).join('')}</div>`;
     bindFrame(n);
-    if(real&&window.FXR){const fx=S.effects.filter(f=>f.on===n.id);const cv=st.querySelector('.fxcv');if(cv&&fx.length)FXR.attach(cv,fx);}
+    if(real&&window.FXR){const fx=S.effects.filter(f=>f.on===n.id);const cv=st.querySelector('.fxcv');if(cv&&(fx.length||hasEnv(n)))FXR.attach(cv,fx,envOf(n));}
   }
   renderPanel(n,iss[n.id]||[]);
   document.querySelectorAll('#modeseg button').forEach(b=>b.onclick=()=>{ui.mode=b.dataset.m;hidePop();render();});
@@ -661,6 +664,17 @@ function createArrow(to){
   });
   const t=node(to);toast(`Flecha a ${pad(t.num)} · ${t.name}`+(P.back?' (con regreso)':''));ui.wheelTip=1;startWheel(ui.selArrow,'arw');
 }
+async function copyEnv(src){
+  const others=byNum().filter(m=>!m.vacant&&m.id!==src.id);if(!others.length)return;
+  const ev=envOf(src);
+  const pr=ask('Copiar ambiente',`Humo ${Math.round(ev.amb*100)}%${ev.amb>0?` · plano neutro ${Math.round(ev.plane*100)}%`:''} · máscara ${ev.mask?'sí':'no'}.<div class="envpick">${others.map(m=>`<label><input type="checkbox" value="${m.id}" ${hasEnv(m)?'checked':''}><img src="${IM[m.id]?.thumb||''}"><b>${pad(m.num)}</b> ${esc(m.name)}</label>`).join('')}</div><div class="row" style="margin-top:6px"><button type="button" id="envAll">Todas</button><button type="button" id="envNone">Ninguna</button></div>`,'Copiar');
+  const boxes=[...$('#mP').querySelectorAll('.envpick input')];
+  $('#envAll').onclick=()=>boxes.forEach(b=>b.checked=true);$('#envNone').onclick=()=>boxes.forEach(b=>b.checked=false);
+  if(!await pr)return;
+  const ids=boxes.filter(b=>b.checked).map(b=>b.value);if(!ids.length)return;
+  mutate(()=>{for(const id of ids){const m=node(id);m.amb=ev.amb;m.plane=ev.plane;m.mask=ev.mask;}});
+  toast(`Ambiente copiado a ${ids.length} foto${ids.length===1?'':'s'}`);
+}
 function renderPanel(n,iss){
   const outs=S.arrows.filter(a=>a.from===n.id);
   const ins=S.arrows.filter(a=>a.to===n.id);
@@ -671,6 +685,13 @@ function renderPanel(n,iss){
   <div class="row"><label class="chk"><input type="checkbox" id="nstart" ${S.startId===n.id?'checked':''}>Punto de partida</label><label class="chk"><input type="checkbox" id="nfinal" ${n.final?'checked':''}>Foco / final</label></div>`}
   ${n.vacant?"":`<div class="row"><button id="nchain" title="Flecha Adelante a la siguiente foto y Volver desde ella">⛓ Encadenar con la siguiente</button></div>`}<div class="row"><button id="nrep">Reemplazar foto</button>${n.vacant?'':'<button class="danger" id="ndel">Quitar foto</button>'}</div>
   <div class="hint">Archivo: ${esc(n.file||'—')}</div>`;
+  if(!n.vacant){const ev=envOf(n);
+    h+=`<h3>Ambiente interior</h3>
+    <div class="row"><span class="hint" style="width:92px">Humo ambiente</span><input type="range" id="eamb" min="0" max="1" step="0.05" value="${ev.amb}"><span class="mono hint" id="eambv" style="width:40px;text-align:right">${Math.round(ev.amb*100)}%</span></div>
+    ${ev.amb>0?`<div class="row"><span class="hint" style="width:92px" title="Altura del límite inferior del humo">Plano neutro</span><input type="range" id="eplane" min="0.15" max="0.95" step="0.05" value="${ev.plane}"><span class="mono hint" id="eplanev" style="width:40px;text-align:right">${Math.round(ev.plane*100)}%</span></div>`:''}
+    <div class="row"><label class="chk"><input type="checkbox" id="emask" ${ev.mask?'checked':''}>Vista desde la máscara</label></div>
+    <div class="row"><button id="eall" title="Copia humo ambiente, plano neutro y máscara a las fotos que elijas">Copiar a otras fotos…</button></div>
+    ${ui.fxView!=='real'&&hasEnv(n)?'<div class="hint">Se ve en modo 🔥 Realista y en Probar.</div>':''}`;}
   if(iss.length)h+=`<h3>Revisar</h3>`+iss.map(i=>`<div class="warnbox ${i.lvl==='bad'?'bad':''}">${esc(i.t)}</div>`).join('');
   if(sel){const t=node(sel.to);
     h+=`<h3>Flecha seleccionada</h3><div class="types" style="grid-template-columns:repeat(5,1fr)">${TYPE_ORDER.map(k=>`<button data-st="${k}" class="${k===sel.type?'on':''}" title="${TYPES[k].es}">${arrowSVG(k)}</button>`).join('')}</div>
@@ -701,6 +722,12 @@ function renderPanel(n,iss){
   const asl=p.querySelector('#ascale');if(asl){let bf=null;
     asl.oninput=e=>{if(bf===null){snap();bf=ui._before;}sel.scale=+e.target.value;const el=document.querySelector(`.arw[data-a="${sel.id}"]`);if(el)el.style.setProperty('--k',sel.scale);p.querySelector('#ascalev').textContent=Math.round(sel.scale*100)+'%';};
     asl.onchange=()=>{if(bf!==null){ui._before=bf;bf=null;commit();}};}
+  const envSlider=(id,key,fmt)=>{const el=p.querySelector(id);if(!el)return;let bf=null;
+    el.oninput=e=>{if(bf===null){snap();bf=ui._before;}n[key]=+e.target.value;p.querySelector(id+'v').textContent=Math.round(n[key]*100)+'%';};
+    el.onchange=()=>{if(bf!==null){ui._before=bf;bf=null;commit();}render();};};
+  envSlider('#eamb','amb');envSlider('#eplane','plane');
+  p.querySelector('#emask')?.addEventListener('change',e=>mutate(()=>{n.mask=e.target.checked;if(e.target.checked)ui.fxView='real';}));
+  p.querySelector('#eall')?.addEventListener('click',()=>copyEnv(n));
   p.querySelector('#seldel')?.addEventListener('click',()=>{mutate(()=>{S.arrows=S.arrows.filter(a=>a!==sel);ui.selArrow=null;});});
   p.querySelectorAll('.al[data-a]').forEach(e=>e.onclick=ev=>{if(ev.target.closest('[data-go]'))return;ui.selArrow=e.dataset.a;ui.selFx=null;render();});
   p.querySelectorAll('.al[data-f]').forEach(e=>e.onclick=()=>{ui.selFx=e.dataset.f;ui.selArrow=null;render();});
@@ -859,7 +886,7 @@ function renderPlay(){
   const {w,h}=fitFrame(st,n);
   st.innerHTML=`<div class="frame ${ui.fxView==='real'?'real':''}" id="pframe" style="width:${w}px;height:${h}px;opacity:0"><img class="bg" src="${imgSrc(n.id)}" draggable="false">${ui.fxView==='real'?'<canvas class="fxcv"></canvas>':''}${ui.fxView==='icons'?S.effects.filter(f=>f.on===n.id).map(f=>fxEl(f,false)).join(''):''}${S.arrows.filter(a=>a.from===n.id).map(a=>arrowEl(a,false)).join('')}</div>`;
   requestAnimationFrame(()=>{const f=$('#pframe');if(f)f.style.opacity=1;});
-  const cv=st.querySelector('.fxcv');const fx=S.effects.filter(f=>f.on===n.id);if(cv&&fx.length&&window.FXR)FXR.attach(cv,fx);
+  const cv=st.querySelector('.fxcv');const fx=S.effects.filter(f=>f.on===n.id);if(cv&&(fx.length||hasEnv(n))&&window.FXR)FXR.attach(cv,fx,envOf(n));
   if(normOn())normPreview(n).then(u=>{const im=st.querySelector('img.bg');if(u&&im&&ui.playCur===n.id)im.src=u;}).catch(()=>{});
   document.querySelectorAll('#pview button').forEach(b=>b.classList.toggle('on',b.dataset.fv===ui.fxView));
   st.querySelectorAll('.arw').forEach(e=>e.onclick=()=>{const a=S.arrows.find(x=>x.id===e.dataset.a);const t=node(a.to);if(!t||t.vacant){toast('Esta flecha apunta a una diapositiva vacante');return;}ui.history.push(n.id);ui.playCur=t.id;renderPlay();});
@@ -1058,7 +1085,7 @@ async function buildPlayer(onProgress){
     const u=await exportImage(n,presQ().w,presQ().q,luts[n.id]);const img=u8ToDataURL(u);const im=await loadImg(img);
     slides.push({id:n.id,name:n.name,img,w:im.naturalWidth,h:im.naturalHeight,final:!!n.final,
       arrows:S.arrows.filter(a=>a.from===n.id&&ids.has(a.to)).map(a=>({x:a.x,y:a.y,k:a.scale||1,to:a.to,svg:arrowSVG(a.type),t:node(a.to).name})),
-      fx:S.effects.filter(f=>f.on===n.id).map(f=>({type:f.type,x:f.x,y:f.y,scale:f.scale||1}))});}
+      fx:S.effects.filter(f=>f.on===n.id).map(f=>({type:f.type,x:f.x,y:f.y,scale:f.scale||1})),env:envOf(n)});}
   const data={name:S.name,start:ids.has(S.startId)?S.startId:live[0].id,slides};
   const engine=document.getElementById('fxengine').textContent;
   const J=JSON.stringify(data).replace(/</g,'\\u003c');
@@ -1098,7 +1125,7 @@ function render(){var s=by[cur],wh=fit(s);
   var h='<div class="fr'+(fxOn?' fxon':'')+'" style="width:'+wh[0]+'px;height:'+wh[1]+'px;opacity:0"><img src="'+s.img+'" draggable="false">'+(fxOn?'<canvas></canvas>':'');
   var z=Math.max(.62,Math.min(1,wh[0]/1000));s.arrows.forEach(function(a,i){var px=Math.round(56*(a.k||1)*z);h+='<button class="a" data-i="'+i+'" style="left:'+a.x*100+'%;top:'+a.y*100+'%;width:'+px+'px;height:'+px+'px;margin:'+(-px/2)+'px 0 0 '+(-px/2)+'px" title="'+a.t.replace(/"/g,'&quot;')+'">'+a.svg+'</button>';});
   st.innerHTML=h+'</div>';var fr=st.firstChild;placeBar(wh);
-  if(fxOn&&s.fx.length)FXR.attach(fr.querySelector('canvas'),s.fx);
+  if(fxOn&&(s.fx.length||(s.env&&(s.env.amb>0||s.env.mask))))FXR.attach(fr.querySelector('canvas'),s.fx,s.env);
   fr.querySelectorAll('.a').forEach(function(b){b.onclick=function(){go(s.arrows[+b.dataset.i].to);};});
   requestAnimationFrame(function(){fr.style.opacity=1;});
   bk.disabled=!hist.length;document.getElementById('ttl').innerHTML=D.name.replace(/</g,'&lt;')+'<small>'+s.name.replace(/</g,'&lt;')+'</small>';}

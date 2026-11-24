@@ -116,7 +116,7 @@ captura/            ← app de captura para el teléfono (index.html, sw.js, man
 src/
   app.html          ← interfaz y lógica (HTML + CSS + JS)
   fxengine.js       ← motor de fuego y humo animado (también va dentro de las presentaciones)
-  demo.json         ← fotos reducidas del ejemplo "Fuego en cocina" (10 primeras)
+  demo.json         ← fotos reducidas del ejemplo "Fuego en cocina" (llegada → cocina)
 tools/
   build.py          ← une src/ en index.html
 docs/               ← capturas para este README

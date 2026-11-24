@@ -1248,7 +1248,7 @@ async function openZip(f){
   }catch(e){toast('No pude abrir ese zip: '+e.message);}
 }
 async function loadDemo(){
-  // ejemplo: las 10 primeras fotos del escenario «Fuego en cocina» (Monte Carmelo) con sus flechas reales
+  // ejemplo: «Fuego en cocina» (Monte Carmelo): el camino más corto de la llegada hasta el fuego en la cocina, con flechas y efectos reales
   await stash();S=newProject();S.name='Ejemplo · Fuego en cocina';
   const ids={};
   for(const d of DEMO){const id=uid();ids[d.file]=id;
@@ -1259,7 +1259,7 @@ async function loadDemo(){
     for(const a of d.arrows||[])if(ids[a.to])S.arrows.push({id:uid(),from:ids[d.file],to:ids[a.to],type:a.type,x:a.x,y:a.y,scale:a.scale||1});
     for(const f of d.fx||[])S.effects.push({id:uid(),on:ids[d.file],type:f.type,x:f.x,y:f.y,scale:f.scale||1,note:f.note||''});}
   if(!S.startId)S.startId=S.nodes[0]?.id;
-  resetUI();ui.cur=S.startId;persist();render();toast('Ejemplo cargado: primeras 10 fotos de «Fuego en cocina»');
+  resetUI();ui.cur=S.startId;persist();render();toast('Ejemplo cargado: de la llegada al fuego en la cocina');
 }
 
 /* ---------- events ---------- */

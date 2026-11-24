@@ -31,6 +31,7 @@ Es un solo archivo HTML: no necesita instalación, servidor ni internet, y **las
 - Conectar dos fotos arrastrando el **●+** de una a otra (ida y vuelta o solo ida).
 - Clic en una conexión para cambiar su dirección o eliminarla.
 - Avisos: fotos a las que no se llega, fotos sin salida, flechas rotas.
+- **🎬 Crear escenario**: selecciona en el mapa las fotos de un recorrido (por ejemplo llegada → puerta principal → pasillo → cocina) y se crea un proyecto nuevo solo con ellas, sus conexiones y efectos, numerado desde 1. Así, de un mismo levantamiento completo (el *master*) salen varios escenarios. Máximo **40 fotos por escenario**, que es lo que carga bien la versión tablet de Fire Studio; el master puede tener más, pero se usa en computador. El master no cambia y queda en Recientes.
 
 **Probar y presentar**
 

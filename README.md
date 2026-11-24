@@ -7,7 +7,7 @@ En Fire Studio, las flechas de navegación saltan a "la diapositiva número X": 
 
 Es un solo archivo HTML: no necesita instalación, servidor ni internet, y **las fotos nunca salen del computador**.
 
-![Editor en modo realista](docs/editar.jpg)
+![Editor en modo realista](planificador-recorridos/docs/editar.jpg)
 
 ---
 
@@ -25,17 +25,18 @@ Es un solo archivo HTML: no necesita instalación, servidor ni internet, y **las
 
 **Mapa**
 
-![Mapa del recorrido](docs/mapa.jpg)
+![Mapa del recorrido](planificador-recorridos/docs/mapa.jpg)
 
 - Vista de todo el recorrido como plano de conexiones, con zoom (hasta 1000 %) y paneo.
 - Seleccionar fotos (clic, Shift+clic, Shift+arrastrar, Ctrl+A), encadenarlas, quitarlas.
 - Conectar dos fotos arrastrando el **●+** de una a otra (ida y vuelta o solo ida).
 - Clic en una conexión para cambiar su dirección o eliminarla.
 - Avisos: fotos a las que no se llega, fotos sin salida, flechas rotas.
+- **🎬 Crear escenario**: selecciona en el mapa las fotos de un recorrido (por ejemplo llegada → puerta principal → pasillo → cocina) y se crea un proyecto nuevo solo con ellas, sus conexiones y efectos, numerado desde 1. Así, de un mismo levantamiento completo (el *master*) salen varios escenarios. Máximo **40 fotos por escenario**, que es lo que carga bien la versión tablet de Fire Studio; el master puede tener más, pero se usa en computador. El master no cambia y queda en Recientes.
 
 **Probar y presentar**
 
-![Modo prueba](docs/probar.jpg)
+![Modo prueba](planificador-recorridos/docs/probar.jpg)
 
 - Recorrer el escenario como lo verá el alumno, con efectos animados.
 - **Descargar presentación**: un `.html` único tipo "Player", solo navegable con las flechas, sin edición. Funciona en computador y en celular (en iPhone, abrirlo desde un link; ver más abajo).

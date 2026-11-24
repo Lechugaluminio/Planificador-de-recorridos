@@ -374,7 +374,7 @@ async function openRecent(id){if(id===S.pid){closeMenu();return;}const r=await i
   toast(`Abierto «${S.name}»`+(miss?` · para exportar, vuelve a cargar sus fotos (+ Fotos)`:''));}
 async function deleteRecent(id,name){if(!await ask('¿Borrar de Recientes?',`«${esc(name)}» se quitará de la lista de este navegador. Si tienes guardado su proyecto (.json o .zip) lo puedes volver a abrir igual.`,'Borrar'))return;await idbDo('readwrite',st=>st.delete(id));renderMenu();fillEmptyRecent();}
 const when=t=>{const d=new Date(t),n=new Date();const hm=d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:false});return d.toDateString()===n.toDateString()?'hoy '+hm:d.toLocaleDateString('es-CL',{day:'numeric',month:'short'})+' '+hm;};
-function recentHTML(list,withCur){return list.map(r=>`<div class="rc" data-r="${r.id}">${r.cover?`<img src="${r.cover}">`:'<div class="ph"></div>'}<div style="min-width:0"><div class="nm">${esc(r.name)}</div><small>${r.fotos} fotos · ${r.flechas||0} flechas · ${when(r.savedAt)}</small></div>${withCur&&r.id===S.pid?'<span class="cur">abierto</span>':`<button class="x" data-del="${r.id}" title="Quitar de Recientes">✕</button>`}</div>`).join('');}
+function recentHTML(list,withCur){return list.map(r=>`<div class="rc" data-r="${r.id}">${r.cover?`<img src="${r.cover}">`:'<div class="ph"></div>'}<div style="min-width:0"><div class="nm">${esc(r.name)}</div><small>${r.S&&r.S.parent?`escenario de «${esc(r.S.parent.name)}» · `:''}${r.fotos} fotos · ${r.flechas||0} flechas · ${when(r.savedAt)}</small></div>${withCur&&r.id===S.pid?'<span class="cur">abierto</span>':`<button class="x" data-del="${r.id}" title="Quitar de Recientes">✕</button>`}</div>`).join('');}
 function bindRecent(root){root.querySelectorAll('.rc').forEach(e=>e.onclick=ev=>{const d=ev.target.closest('[data-del]');if(d){ev.stopPropagation();const nm=e.querySelector('.nm').textContent;deleteRecent(d.dataset.del,nm);return;}closeMenu();openRecent(e.dataset.r);});}
 async function renderMenu(){
   const m=$('#menu');
@@ -708,10 +708,11 @@ function renderMapTools(){
     t.querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>setEdge(e.a,e.b,b.dataset.e));return;}
   if(sel.length){
     const L=sel.map(node).sort((x,y)=>x.num-y.num);
-    t.innerHTML=`<b>${sel.length} foto${sel.length>1?'s':''} seleccionada${sel.length>1?'s':''}</b>${sel.length>1?`<button id="mcB" title="Flechas de avance y de retorno, en orden de número">⛓ Encadenar ↔</button><button id="mcF" title="Solo flechas de avance, en orden de número">⛓ Encadenar →</button>`:''}${sel.length===1?'<button id="mEd">Editar</button>':''}<button class="danger" id="mDel">Quitar ${sel.length>1?'fotos':'foto'}</button><span class="hint">Shift+clic suma · Supr quita · Esc deselecciona</span>`;
+    t.innerHTML=`<b>${sel.length} foto${sel.length>1?'s':''} seleccionada${sel.length>1?'s':''}</b>${sel.length>1?`<button id="mcB" title="Flechas de avance y de retorno, en orden de número">⛓ Encadenar ↔</button><button id="mcF" title="Solo flechas de avance, en orden de número">⛓ Encadenar →</button>`:''}${sel.length>1?`<button id="mEsc" class="${sel.length>MAX_ESC?'':'pri'}" ${sel.length>MAX_ESC?'disabled':''} title="${sel.length>MAX_ESC?`Máximo ${MAX_ESC} fotos por escenario (la versión tablet de Fire Studio no carga más)`:'Nuevo proyecto solo con estas fotos y sus conexiones'}">🎬 Crear escenario <span style="opacity:.75">${sel.length}/${MAX_ESC}</span></button>`:''}${sel.length===1?'<button id="mEd">Editar</button>':''}<button class="danger" id="mDel">Quitar ${sel.length>1?'fotos':'foto'}</button><span class="hint">Shift+clic suma · Supr quita · Esc deselecciona</span>`;
     $('#mcB')?.addEventListener('click',()=>{const m=chain(L,true);toast(m?`${m} flechas creadas`:'Ya estaban conectadas');});
     $('#mcF')?.addEventListener('click',()=>{const m=chain(L,false);toast(m?`${m} flechas de avance creadas`:'Ya estaban conectadas');});
     $('#mEd')?.addEventListener('click',()=>{ui.cur=sel[0];ui.view='edit';render();});
+    $('#mEsc')?.addEventListener('click',()=>createScenario(sel));
     $('#mDel').onclick=()=>vacateMany(sel);return;}
   t.innerHTML=`<span class="hint">Clic selecciona · doble clic edita · Shift+arrastrar selecciona varias · arrastra el <b style="color:var(--fire)">●</b> de una foto a otra para conectarlas:</span><span class="seg" id="lmode"><button data-l="1" class="${mode?'on':''}">↔ Ida y vuelta</button><button data-l="0" class="${!mode?'on':''}">→ Solo ida</button></span><span class="hint"><span class="dot" style="background:var(--ok)"></span>inicio <span class="dot" style="background:var(--fire)"></span>foco <span class="dot" style="background:var(--warn)"></span>revisar</span>`;
   t.querySelectorAll('#lmode button').forEach(b=>b.onclick=()=>{ui.linkBoth=b.dataset.l==='1';renderMapTools();});
@@ -840,6 +841,7 @@ function renderExp(){
   $('#expv').innerHTML=`<div class="exp">
   <h2 style="margin:0 0 4px">Llevarlo a Fire Studio</h2>
   <div class="hint">${live.filter(n=>!n.vacant).length} fotos · ${S.arrows.length} flechas · ${S.effects.length} efectos · ${nIss?`<span style="color:var(--warn)">${nIss} cosa(s) por revisar en Editar</span>`:'<span style="color:var(--ok)">sin problemas detectados</span>'}</div>
+  ${live.filter(n=>!n.vacant).length>MAX_ESC?`<div class="warnbox" style="margin-top:12px">Este proyecto tiene <b>${live.filter(n=>!n.vacant).length} fotos</b>: la versión tablet de Fire Studio carga bien hasta ${MAX_ESC}. Úsalo como master en computador, o separa escenarios desde el <b>Mapa</b> (selecciona fotos → 🎬 Crear escenario).</div>`:''}
   <div class="cards">
     <div class="card"><h4>1 · Paquete completo</h4><p>Fotos renombradas en orden (<span class="mono">001_…jpg</span>) y ajustadas a <input type="number" id="ew" value="${S.exportWidth}" style="width:80px;display:inline-block"> px de ancho, más la hoja de enlaces, CSV y el proyecto.</p><button class="pri" id="bZip">Descargar .zip</button></div>
     <div class="card"><h4>2 · Solo la hoja de enlaces</h4><p>Página para tener al lado mientras armas: cada diapositiva con sus flechas, ícono y destino.</p><button id="bSheet">Hoja (.html)</button> <button id="bCsv">CSV flechas</button> <button id="bCsvFx">CSV efectos</button></div>
@@ -866,14 +868,38 @@ function renderExp(){
 async function renumber(){
   const vac=S.nodes.filter(n=>n.vacant).length,live=S.nodes.filter(n=>!n.vacant);const r=reach();const loose=live.filter(n=>!r.has(n.id)).length;
   if(!await ask('¿Renumerar por recorrido?',`Las fotos se numeran 1, 2, 3… en el orden en que se recorren desde el inicio${loose?`; las ${loose} que no están conectadas quedan al final`:''}${vac?`, y se eliminan las ${vac} vacantes`:''}.${S.applied?'<br><br><b style="color:var(--warn)">Ya marcaste este escenario como aplicado en Fire Studio:</b> si renumeras, tendrás que rehacerlo allá.':'<br><br>Úsalo antes de armar el escenario en Fire Studio, porque todos los números cambian.'}`,'Renumerar'))return;
-  mutate(()=>{
-    const order=[];const seen=new Set();const q=S.startId?[S.startId]:[];
-    while(q.length){const id=q.shift();if(seen.has(id))continue;seen.add(id);order.push(id);S.arrows.filter(a=>a.from===id).sort((a,b)=>a.x-b.x).forEach(a=>{const t=node(a.to);if(t&&!t.vacant)q.push(a.to);});}
-    byNum().forEach(n=>{if(!n.vacant&&!seen.has(n.id))order.push(n.id);});
-    const keep=new Set(order);S.arrows=S.arrows.filter(a=>keep.has(a.from)&&keep.has(a.to));S.effects=S.effects.filter(f=>keep.has(f.on));
-    S.nodes=S.nodes.filter(n=>keep.has(n.id));order.forEach((id,i)=>node(id).num=i+1);S.nextNum=order.length+1;S.applied=null;
-  });
+  mutate(renumberCore);
   toast('Numeración rehecha');
+}
+function renumberCore(){
+  const order=[];const seen=new Set();const q=S.startId?[S.startId]:[];
+  while(q.length){const id=q.shift();if(seen.has(id))continue;seen.add(id);order.push(id);S.arrows.filter(a=>a.from===id).sort((a,b)=>a.x-b.x).forEach(a=>{const t=node(a.to);if(t&&!t.vacant)q.push(a.to);});}
+  byNum().forEach(n=>{if(!n.vacant&&!seen.has(n.id))order.push(n.id);});
+  const keep=new Set(order);S.arrows=S.arrows.filter(a=>keep.has(a.from)&&keep.has(a.to));S.effects=S.effects.filter(f=>keep.has(f.on));
+  S.nodes=S.nodes.filter(n=>keep.has(n.id));order.forEach((id,i)=>node(id).num=i+1);S.nextNum=order.length+1;S.applied=null;
+}
+/* --- escenarios: separar un recorrido del levantamiento completo (master) --- */
+const MAX_ESC=40;
+async function createScenario(ids){
+  ids=ids.filter(id=>node(id)&&!node(id).vacant);
+  if(ids.length<2){toast('Selecciona al menos 2 fotos');return;}
+  if(ids.length>MAX_ESC){toast(`Un escenario puede tener hasta ${MAX_ESC} fotos (seleccionaste ${ids.length})`);return;}
+  const set=new Set(ids),L=ids.map(node).sort((a,b)=>a.num-b.num);
+  const st=set.has(S.startId)?S.startId:L[0].id,fo=(L.find(n=>n.final)||{}).id||'';
+  const out=S.arrows.filter(a=>set.has(a.from)&&!set.has(a.to)).length;
+  const sty='style="width:100%;margin:4px 0 10px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px;color:var(--text)"';
+  const opt=(sel,none)=>(none?`<option value="">(sin foco)</option>`:'')+L.map(n=>`<option value="${n.id}" ${n.id===sel?'selected':''}>${pad(n.num)} · ${esc(n.name)}</option>`).join('');
+  const ok=await ask('Crear escenario con la selección',`Se crea un proyecto nuevo con estas <b>${ids.length} fotos</b> (máx. ${MAX_ESC}), sus conexiones y efectos, numerado desde 1 siguiendo el recorrido. El master no cambia y queda en Recientes.${out?`<br><span style="color:var(--warn)">${out} flecha(s) apuntan a fotos que no están en la selección y no se copian.</span>`:''}<br><br>Nombre<input type="text" id="scN" ${sty} value="${esc(S.name.replace(/ · master$/i,''))} · escenario">Inicio<select id="scS" ${sty}>${opt(st)}</select>Foco<select id="scF" ${sty}>${opt(fo,true)}</select>`,'Crear escenario');
+  if(!ok)return;
+  const name=($('#scN').value||'').trim()||(S.name+' · escenario'),start=$('#scS').value,foco=$('#scF').value;
+  const P=newProject();P.name=name;P.parent={pid:S.pid,name:S.name};P.exportWidth=S.exportWidth;P.normalize=S.normalize;
+  P.nodes=L.map(n=>({...JSON.parse(JSON.stringify(n)),mx:null,my:null,final:foco?n.id===foco:!!n.final}));
+  P.arrows=S.arrows.filter(a=>set.has(a.from)&&set.has(a.to)).map(a=>({...a,id:uid()}));
+  P.effects=S.effects.filter(f=>set.has(f.on)).map(f=>({...f,id:uid()}));
+  P.startId=start;
+  await switchProject(P);
+  renumberCore();ui.cur=S.startId;ui.view='map';ui.cam=null;mapSelSet().clear();ui.mapEdge=null;persist();render();
+  toast(`Escenario «${name}» creado con ${ids.length} fotos · el master quedó en Menú › Recientes`);
 }
 function csv(){
   const L=[['diapositiva','nombre','archivo','flecha','icono_nav_icons','x_pct','y_pct','tamano_pct','destino','destino_nombre']];
